@@ -45,7 +45,7 @@ export default function Home() {
           >
             <Menu className="w-5 h-5" />
           </button>
-          <h1 className="text-lg font-semibold">LearnAI</h1>
+          <h1 className="text-lg font-semibold">BrainStarta</h1>
           <button
             onClick={() => setIsChatOpen(!isChatOpen)}
             className="p-2 hover:bg-gray-100 rounded-lg"

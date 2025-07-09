@@ -76,7 +76,7 @@ export default function Chatbot() {
             <Bot className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h3 className="text-white font-semibold">AI Learning Assistant</h3>
+            <h3 className="text-white font-semibold">Chatboat</h3>
             <p className="text-blue-100 text-sm">Online • Ready to help</p>
           </div>
         </div>

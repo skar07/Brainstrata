@@ -32,7 +32,7 @@ export default function Sidebar() {
               <Book className="w-5 h-5 text-white" />
             </div>
             {!isCollapsed && (
-              <h1 className="text-xl font-bold text-gray-900">LearnAI</h1>
+              <h1 className="text-xl font-bold text-gray-900">BrainStarta</h1>
             )}
           </div>
           <button
