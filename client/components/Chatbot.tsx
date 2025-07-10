@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import MessageInput from './MessageInput';
 import { Bot, User, ThumbsUp, ThumbsDown, Copy, RotateCcw } from 'lucide-react';
+import type { GeneratedSection } from '../types/api';
 
 interface Message {
   id: string;
@@ -11,11 +12,19 @@ interface Message {
   timestamp: Date;
 }
 
-export default function Chatbot() {
+interface ChatbotProps {
+  onNewGeneratedContent?: (sections: GeneratedSection[]) => void;
+  onGeneratingStateChange?: (generating: boolean) => void;
+}
+
+export default function Chatbot({ 
+  onNewGeneratedContent, 
+  onGeneratingStateChange
+}: ChatbotProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      content: "Hello! I'm your AI learning assistant. I can help you understand concepts, answer questions, and provide additional explanations about the lesson. What would you like to know about photosynthesis?",
+      content: "Hello! I'm your AI learning assistant. I can help you understand concepts, answer questions, and provide additional explanations about the lesson. What would you like to know?",
       isBot: true,
       timestamp: new Date(),
     },
@@ -54,16 +63,16 @@ export default function Chatbot() {
   };
 
   return (
-    <div className="w-96 bg-white border-l border-gray-200 flex flex-col h-screen">
+    <div className="w-96 bg-white border-l border-gray-200 flex flex-col h-full">
       {/* Header */}
       <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-500 to-purple-600">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-            <Bot className="w-5 h-5 text-white" />
+          <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+            <Bot className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h3 className="text-white font-semibold">Chatboat</h3>
-            <p className="text-blue-100 text-sm">Online • Ready to help</p>
+            <h3 className="font-semibold text-white">AI Assistant</h3>
+            <p className="text-xs text-blue-100">Always ready to help</p>
           </div>
         </div>
       </div>
@@ -73,14 +82,16 @@ export default function Chatbot() {
         {messages.map((message) => (
           <div
             key={message.id}
-            className={`flex gap-3 ${message.isBot ? 'justify-start' : 'justify-end'}`}
+            className={`flex gap-3 ${
+              message.isBot ? 'justify-start' : 'justify-end'
+            }`}
           >
             {message.isBot && (
               <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
                 <Bot className="w-4 h-4 text-white" />
               </div>
             )}
-            
+
             <div
               className={`max-w-[70%] p-3 rounded-lg relative group ${
                 message.isBot
@@ -142,9 +153,9 @@ export default function Chatbot() {
         <p className="text-xs text-gray-600 mb-2">Quick questions:</p>
         <div className="flex flex-wrap gap-2">
           {[
-            "What is photosynthesis?",
-            "How does chloroplast work?",
-            "Explain ATP",
+            "Tell me about heart",
+            "Explain quantum physics",
+            "How does AI work?",
           ].map((question, index) => (
             <button
               key={index}
@@ -158,7 +169,11 @@ export default function Chatbot() {
       </div>
 
       {/* Input */}
-      <MessageInput onSendMessage={handleSendMessage} />
+      <MessageInput 
+        onSendMessage={handleSendMessage}
+        onNewGeneratedContent={onNewGeneratedContent}
+        onGeneratingStateChange={onGeneratingStateChange}
+      />
     </div>
   );
 }

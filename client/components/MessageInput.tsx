@@ -2,15 +2,30 @@
 
 import { useState } from 'react';
 import { Send, Paperclip, Smile } from 'lucide-react';
-import type { GenerateResponse } from '../types/api';
+import type { GenerateResponse, GeneratedSection } from '../types/api';
 
 interface MessageInputProps {
   onSendMessage: (message: string, response?: string) => void;
+  onNewGeneratedContent?: (sections: GeneratedSection[]) => void;
+  onGeneratingStateChange?: (generating: boolean) => void;
 }
 
-export default function MessageInput({ onSendMessage }: MessageInputProps) {
+export default function MessageInput({ 
+  onSendMessage, 
+  onNewGeneratedContent, 
+  onGeneratingStateChange
+}: MessageInputProps) {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const generateSectionTitles = (originalPrompt: string): string[] => {
+    return [
+      `Basic Overview: `,
+      `How it Works: `,
+      `Practical Examples: `,
+      `Scientific Deep-Dive: `
+    ];
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,6 +34,9 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
     const prompt = message.trim();
     setLoading(true);
     setMessage('');
+
+    // Notify that generation is starting
+    onGeneratingStateChange?.(true);
 
     // First, send the user message to chatbot
     onSendMessage(prompt);
@@ -33,14 +51,30 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
       if (!res.ok) throw new Error(await res.text());
       const data: GenerateResponse = await res.json();
       
-      // Send the response back to chatbot
+      // Send the simple response back to chatbot for backward compatibility
       onSendMessage(prompt, data.text);
+
+      // If we have multiple responses, create sections for GeneratedContent
+      if (data.responses && data.responses.length > 0 && onNewGeneratedContent) {
+        const sectionTitles = generateSectionTitles(prompt);
+        
+        const generatedSections: GeneratedSection[] = data.responses.map((response, index) => ({
+          id: `section-${Date.now()}-${index}`,
+          title: sectionTitles[index] || `Response ${index + 1}`,
+          prompt: response.prompt,
+          content: response.response,
+          timestamp: new Date()
+        }));
+
+        onNewGeneratedContent(generatedSections);
+      }
     } catch (err) {
       console.error('API Error:', err);
       // Send error message back to chatbot
       onSendMessage(prompt, "I'm sorry, I encountered an error while processing your request. Please try again.");
     } finally {
       setLoading(false);
+      onGeneratingStateChange?.(false);
     }
   };
 
@@ -52,7 +86,7 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
             type="text"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Ask me anything about the lesson..."
+            placeholder="Ask me anything about any topic..."
             className="w-full px-4 py-3 pr-12 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             disabled={loading}
           />
