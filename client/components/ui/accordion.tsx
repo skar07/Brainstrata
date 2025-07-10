@@ -1,58 +1,142 @@
-'use client';
+import * as React from "react"
+import { clsx } from "clsx"
 
-import * as React from 'react';
-import * as AccordionPrimitive from '@radix-ui/react-accordion';
-import { ChevronDown } from 'lucide-react';
+interface AccordionProps extends React.HTMLAttributes<HTMLDivElement> {
+  type?: "single" | "multiple"
+  defaultValue?: string | string[]
+  value?: string | string[]
+  onValueChange?: (value: string | string[]) => void
+  children: React.ReactNode
+}
 
-import { cn } from '@/lib/utils';
+const AccordionContext = React.createContext<{
+  value: string | string[]
+  onValueChange: (value: string | string[]) => void
+  type: "single" | "multiple"
+} | null>(null)
 
-const Accordion = AccordionPrimitive.Root;
+const Accordion = ({ 
+  type = "single", 
+  defaultValue, 
+  value, 
+  onValueChange, 
+  children, 
+  className, 
+  ...props 
+}: AccordionProps) => {
+  const [internalValue, setInternalValue] = React.useState(defaultValue || (type === "multiple" ? [] : ""))
+  
+  const currentValue = value ?? internalValue
+  const handleValueChange = onValueChange ?? setInternalValue
+  
+  return (
+    <AccordionContext.Provider value={{ value: currentValue, onValueChange: handleValueChange, type }}>
+      <div className={clsx("", className)} {...props}>
+        {children}
+      </div>
+    </AccordionContext.Provider>
+  )
+}
 
-const AccordionItem = React.forwardRef<
-  React.ElementRef<typeof AccordionPrimitive.Item>,
-  React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Item>
->(({ className, ...props }, ref) => (
-  <AccordionPrimitive.Item
-    ref={ref}
-    className={cn('border-b', className)}
-    {...props}
-  />
-));
-AccordionItem.displayName = 'AccordionItem';
+interface AccordionItemProps extends React.HTMLAttributes<HTMLDivElement> {
+  value: string
+}
 
-const AccordionTrigger = React.forwardRef<
-  React.ElementRef<typeof AccordionPrimitive.Trigger>,
-  React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Trigger>
->(({ className, children, ...props }, ref) => (
-  <AccordionPrimitive.Header className="flex">
-    <AccordionPrimitive.Trigger
+const AccordionItem = React.forwardRef<HTMLDivElement, AccordionItemProps>(
+  ({ className, value, ...props }, ref) => (
+    <div
       ref={ref}
-      className={cn(
-        'flex flex-1 items-center justify-between py-4 font-medium transition-all hover:underline [&[data-state=open]>svg]:rotate-180',
-        className
-      )}
+      className={clsx("border-b border-gray-200", className)}
+      data-value={value}
       {...props}
-    >
-      {children}
-      <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
-    </AccordionPrimitive.Trigger>
-  </AccordionPrimitive.Header>
-));
-AccordionTrigger.displayName = AccordionPrimitive.Trigger.displayName;
+    />
+  )
+)
+AccordionItem.displayName = "AccordionItem"
 
-const AccordionContent = React.forwardRef<
-  React.ElementRef<typeof AccordionPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Content>
->(({ className, children, ...props }, ref) => (
-  <AccordionPrimitive.Content
-    ref={ref}
-    className="overflow-hidden text-sm transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down"
-    {...props}
-  >
-    <div className={cn('pb-4 pt-0', className)}>{children}</div>
-  </AccordionPrimitive.Content>
-));
+interface AccordionTriggerProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  value?: string
+}
 
-AccordionContent.displayName = AccordionPrimitive.Content.displayName;
+const AccordionTrigger = React.forwardRef<HTMLButtonElement, AccordionTriggerProps>(
+  ({ className, children, ...props }, ref) => {
+    const context = React.useContext(AccordionContext)
+    if (!context) throw new Error("AccordionTrigger must be used within Accordion")
+    
+    const item = (ref as any)?.current?.closest('[data-value]')
+    const value = item?.getAttribute('data-value') || ''
+    
+    const isOpen = context.type === "multiple" 
+      ? (context.value as string[]).includes(value)
+      : context.value === value
+    
+    const handleClick = () => {
+      if (context.type === "multiple") {
+        const currentValues = context.value as string[]
+        const newValues = isOpen 
+          ? currentValues.filter(v => v !== value)
+          : [...currentValues, value]
+        context.onValueChange(newValues)
+      } else {
+        context.onValueChange(isOpen ? "" : value)
+      }
+    }
+    
+    return (
+      <button
+        ref={ref}
+        className={clsx(
+          "flex flex-1 items-center justify-between py-4 font-medium transition-all hover:underline text-left",
+          className
+        )}
+        onClick={handleClick}
+        {...props}
+      >
+        {children}
+        <svg
+          className={clsx("h-4 w-4 shrink-0 transition-transform duration-200", isOpen && "rotate-180")}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+    )
+  }
+)
+AccordionTrigger.displayName = "AccordionTrigger"
 
-export { Accordion, AccordionItem, AccordionTrigger, AccordionContent };
+interface AccordionContentProps extends React.HTMLAttributes<HTMLDivElement> {}
+
+const AccordionContent = React.forwardRef<HTMLDivElement, AccordionContentProps>(
+  ({ className, children, ...props }, ref) => {
+    const context = React.useContext(AccordionContext)
+    if (!context) throw new Error("AccordionContent must be used within Accordion")
+    
+    const item = (ref as any)?.current?.closest('[data-value]')
+    const value = item?.getAttribute('data-value') || ''
+    
+    const isOpen = context.type === "multiple" 
+      ? (context.value as string[]).includes(value)
+      : context.value === value
+    
+    return (
+      <div
+        ref={ref}
+        className={clsx(
+          "overflow-hidden transition-all duration-300",
+          isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+        )}
+        {...props}
+      >
+        <div className={clsx("pb-4 pt-0", className)}>
+          {children}
+        </div>
+      </div>
+    )
+  }
+)
+AccordionContent.displayName = "AccordionContent"
+
+export { Accordion, AccordionItem, AccordionTrigger, AccordionContent } 

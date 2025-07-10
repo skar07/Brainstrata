@@ -1,0 +1,19 @@
+/* TEAM */
+    Developer: Your Name
+    Contact: developer@brainstrata.com
+    Twitter: @brainstrata
+    From: Location
+
+/* THANKS */
+    Name: Contributors
+    Role: Special thanks to all contributors
+
+/* SITE */
+    Last update: 2024/01/01
+    Language: English
+    Doctype: HTML5
+    IDE: VS Code, Cursor
+    Framework: Next.js, React
+    Styling: Tailwind CSS
+    Components: Radix UI
+    Hosting: Vercel 
