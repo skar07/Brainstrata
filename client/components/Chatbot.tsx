@@ -23,44 +23,30 @@ export default function Chatbot() {
 
   const [isTyping, setIsTyping] = useState(false);
 
-  const handleSendMessage = (content: string) => {
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      content,
-      isBot: false,
-      timestamp: new Date(),
-    };
+  const handleSendMessage = (content: string, response?: string) => {
+    if (!response) {
+      // First call - just the user message
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        content,
+        isBot: false,
+        timestamp: new Date(),
+      };
 
-    setMessages(prev => [...prev, userMessage]);
-    setIsTyping(true);
-
-    // Simulate AI response
-    setTimeout(() => {
+      setMessages(prev => [...prev, userMessage]);
+      setIsTyping(true);
+    } else {
+      // Second call - add the AI response
       const botResponse: Message = {
         id: (Date.now() + 1).toString(),
-        content: generateResponse(content),
+        content: response,
         isBot: true,
         timestamp: new Date(),
       };
 
       setMessages(prev => [...prev, botResponse]);
       setIsTyping(false);
-    }, 1500);
-  };
-
-  const generateResponse = (userMessage: string): string => {
-    const responses = {
-      photosynthesis: "Photosynthesis is the process by which plants convert sunlight, carbon dioxide, and water into glucose and oxygen. The equation is: 6CO₂ + 6H₂O + light energy → C₆H₁₂O₆ + 6O₂. This process occurs in two main stages: the light-dependent reactions and the Calvin cycle.",
-      chloroplast: "Chloroplasts are the organelles where photosynthesis occurs. They contain chlorophyll, which captures light energy. The structure includes thylakoids (where light reactions occur) and the stroma (where the Calvin cycle takes place).",
-      energy: "During photosynthesis, light energy is converted into chemical energy. The light-dependent reactions create ATP and NADPH, which are then used in the Calvin cycle to produce glucose.",
-      default: "That's a great question! Photosynthesis is essential for life on Earth. It produces oxygen that we breathe and forms the base of most food chains. Can you tell me more specifically what aspect you'd like to explore?"
-    };
-
-    const message = userMessage.toLowerCase();
-    if (message.includes('photosynthesis')) return responses.photosynthesis;
-    if (message.includes('chloroplast')) return responses.chloroplast;
-    if (message.includes('energy')) return responses.energy;
-    return responses.default;
+    }
   };
 
   const copyMessage = (content: string) => {
