@@ -135,11 +135,7 @@ export default function GeneratedContent({
                   </div>
                   <div className="flex-1">
                     <h2 className="text-2xl font-bold text-gray-900">{section.title}</h2>
-{isDynamicContent && (
-                      <p className="text-sm text-gray-500 mt-1">
-                        <span className="font-medium">Prompt:</span> {(section as GeneratedSection).prompt}
-                      </p>
-                    )}
+
                   </div>
                 </div>
                 <p className="text-gray-700 leading-relaxed mb-6">{section.content}</p>
