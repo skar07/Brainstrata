@@ -54,6 +54,5 @@ export async function login(req: Request, res: Response, next: NextFunction) {
 }
 
 export function logout(req: Request, res: Response) {
-  // For JWT, logout is handled client-side by deleting the token.
   res.json({ message: "Logged out" });
 } 
