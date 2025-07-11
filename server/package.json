@@ -2,14 +2,13 @@
   "name": "server",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "devDependencies": {
     "@tsconfig/node22": "^22.0.2",
     "@types/express": "^5.0.3",
