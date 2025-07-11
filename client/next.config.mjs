@@ -1,10 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
   eslint: {
     ignoreDuringBuilds: true,
   },
   images: { unoptimized: true },
+  experimental: {
+    serverComponentsExternalPackages: ['@xenova/transformers'],
+  },
   webpack: (config, { isServer }) => {
     // Handle canvas and other native modules for client-side builds
     if (!isServer) {
@@ -41,6 +43,13 @@ const nextConfig = {
       test: /\.node$/,
       use: 'ignore-loader',
     });
+
+    // Configure aliases
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "sharp$": false,
+      "onnxruntime-node$": false,
+    };
 
     return config;
   },

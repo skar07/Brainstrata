@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import MessageInput from './MessageInput';
 import { Bot, User, ThumbsUp, ThumbsDown, Copy, RotateCcw } from 'lucide-react';
+import type { GeneratedSection } from '../types/api';
 
 interface Message {
   id: string;
@@ -11,11 +12,19 @@ interface Message {
   timestamp: Date;
 }
 
-export default function Chatbot() {
+interface ChatbotProps {
+  onNewGeneratedContent?: (sections: GeneratedSection[]) => void;
+  onGeneratingStateChange?: (generating: boolean) => void;
+}
+
+export default function Chatbot({ 
+  onNewGeneratedContent, 
+  onGeneratingStateChange
+}: ChatbotProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      content: "Hello! I'm your AI learning assistant. I can help you understand concepts, answer questions, and provide additional explanations about the lesson. What would you like to know about photosynthesis?",
+      content: "Hello! I'm your AI learning assistant. I can help you understand concepts, answer questions, and provide additional explanations about the lesson. What would you like to know?",
       isBot: true,
       timestamp: new Date(),
     },
@@ -23,44 +32,30 @@ export default function Chatbot() {
 
   const [isTyping, setIsTyping] = useState(false);
 
-  const handleSendMessage = (content: string) => {
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      content,
-      isBot: false,
-      timestamp: new Date(),
-    };
+  const handleSendMessage = (content: string, response?: string) => {
+    if (!response) {
+      // First call - just the user message
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        content,
+        isBot: false,
+        timestamp: new Date(),
+      };
 
-    setMessages(prev => [...prev, userMessage]);
-    setIsTyping(true);
-
-    // Simulate AI response
-    setTimeout(() => {
+      setMessages(prev => [...prev, userMessage]);
+      setIsTyping(true);
+    } else {
+      // Second call - add the AI response
       const botResponse: Message = {
         id: (Date.now() + 1).toString(),
-        content: generateResponse(content),
+        content: response,
         isBot: true,
         timestamp: new Date(),
       };
 
       setMessages(prev => [...prev, botResponse]);
       setIsTyping(false);
-    }, 1500);
-  };
-
-  const generateResponse = (userMessage: string): string => {
-    const responses = {
-      photosynthesis: "Photosynthesis is the process by which plants convert sunlight, carbon dioxide, and water into glucose and oxygen. The equation is: 6CO₂ + 6H₂O + light energy → C₆H₁₂O₆ + 6O₂. This process occurs in two main stages: the light-dependent reactions and the Calvin cycle.",
-      chloroplast: "Chloroplasts are the organelles where photosynthesis occurs. They contain chlorophyll, which captures light energy. The structure includes thylakoids (where light reactions occur) and the stroma (where the Calvin cycle takes place).",
-      energy: "During photosynthesis, light energy is converted into chemical energy. The light-dependent reactions create ATP and NADPH, which are then used in the Calvin cycle to produce glucose.",
-      default: "That's a great question! Photosynthesis is essential for life on Earth. It produces oxygen that we breathe and forms the base of most food chains. Can you tell me more specifically what aspect you'd like to explore?"
-    };
-
-    const message = userMessage.toLowerCase();
-    if (message.includes('photosynthesis')) return responses.photosynthesis;
-    if (message.includes('chloroplast')) return responses.chloroplast;
-    if (message.includes('energy')) return responses.energy;
-    return responses.default;
+    }
   };
 
   const copyMessage = (content: string) => {
@@ -68,16 +63,16 @@ export default function Chatbot() {
   };
 
   return (
-    <div className="w-96 bg-white border-l border-gray-200 flex flex-col h-screen">
+    <div className="w-96 bg-white border-l border-gray-200 flex flex-col h-full">
       {/* Header */}
       <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-500 to-purple-600">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-            <Bot className="w-5 h-5 text-white" />
+          <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+            <Bot className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h3 className="text-white font-semibold">Chatboat</h3>
-            <p className="text-blue-100 text-sm">Online • Ready to help</p>
+            <h3 className="font-semibold text-white">AI Assistant</h3>
+            <p className="text-xs text-blue-100">Always ready to help</p>
           </div>
         </div>
       </div>
@@ -87,14 +82,16 @@ export default function Chatbot() {
         {messages.map((message) => (
           <div
             key={message.id}
-            className={`flex gap-3 ${message.isBot ? 'justify-start' : 'justify-end'}`}
+            className={`flex gap-3 ${
+              message.isBot ? 'justify-start' : 'justify-end'
+            }`}
           >
             {message.isBot && (
               <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
                 <Bot className="w-4 h-4 text-white" />
               </div>
             )}
-            
+
             <div
               className={`max-w-[70%] p-3 rounded-lg relative group ${
                 message.isBot
@@ -156,9 +153,9 @@ export default function Chatbot() {
         <p className="text-xs text-gray-600 mb-2">Quick questions:</p>
         <div className="flex flex-wrap gap-2">
           {[
-            "What is photosynthesis?",
-            "How does chloroplast work?",
-            "Explain ATP",
+            "Tell me about heart",
+            "Explain quantum physics",
+            "How does AI work?",
           ].map((question, index) => (
             <button
               key={index}
@@ -172,7 +169,11 @@ export default function Chatbot() {
       </div>
 
       {/* Input */}
-      <MessageInput onSendMessage={handleSendMessage} />
+      <MessageInput 
+        onSendMessage={handleSendMessage}
+        onNewGeneratedContent={onNewGeneratedContent}
+        onGeneratingStateChange={onGeneratingStateChange}
+      />
     </div>
   );
 }
