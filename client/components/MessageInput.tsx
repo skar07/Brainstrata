@@ -1,124 +1,119 @@
 'use client';
 
 import { useState } from 'react';
-import { Send, Paperclip, Smile } from 'lucide-react';
-import type { GenerateResponse, GeneratedSection } from '../types/api';
+import { Send, Paperclip, Smile, Mic, Image } from 'lucide-react';
 
 interface MessageInputProps {
-  onSendMessage: (message: string, response?: string) => void;
-  onNewGeneratedContent?: (sections: GeneratedSection[]) => void;
-  onGeneratingStateChange?: (generating: boolean) => void;
+  onSendMessage: (message: string) => void;
 }
 
-export default function MessageInput({ 
-  onSendMessage, 
-  onNewGeneratedContent, 
-  onGeneratingStateChange
-}: MessageInputProps) {
+export default function MessageInput({ onSendMessage }: MessageInputProps) {
   const [message, setMessage] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
 
-  const generateSectionTitles = (originalPrompt: string): string[] => {
-    return [
-      `Basic Overview: `,
-      `How it Works: `,
-      `Practical Examples: `,
-      `Scientific Deep-Dive: `
-    ];
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim() || loading) return;
-
-    const prompt = message.trim();
-    setLoading(true);
-    setMessage('');
-
-    // Notify that generation is starting
-    onGeneratingStateChange?.(true);
-
-    // First, send the user message to chatbot
-    onSendMessage(prompt);
-
-    try {
-      const res = await fetch('/api/generate', {
-        method: 'POST',
-        body: JSON.stringify({ prompt }),
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      if (!res.ok) throw new Error(await res.text());
-      const data: GenerateResponse = await res.json();
-      
-      // Send the simple response back to chatbot for backward compatibility
-      onSendMessage(prompt, data.text);
-
-      // If we have multiple responses, create sections for GeneratedContent
-      if (data.responses && data.responses.length > 0 && onNewGeneratedContent) {
-        const sectionTitles = generateSectionTitles(prompt);
-        
-        const generatedSections: GeneratedSection[] = data.responses.map((response, index) => ({
-          id: `section-${Date.now()}-${index}`,
-          title: sectionTitles[index] || `Response ${index + 1}`,
-          prompt: response.prompt,
-          content: response.response,
-          timestamp: new Date()
-        }));
-
-        onNewGeneratedContent(generatedSections);
-      }
-    } catch (err) {
-      console.error('API Error:', err);
-      // Send error message back to chatbot
-      onSendMessage(prompt, "I'm sorry, I encountered an error while processing your request. Please try again.");
-    } finally {
-      setLoading(false);
-      onGeneratingStateChange?.(false);
+    if (message.trim()) {
+      onSendMessage(message.trim());
+      setMessage('');
     }
   };
 
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e);
+    }
+  };
+
+  const toggleRecording = () => {
+    setIsRecording(!isRecording);
+    // Add voice recording logic here
+  };
+
   return (
-    <form onSubmit={handleSubmit} className="p-4 border-t border-gray-200 bg-white">
-      <div className="flex items-center gap-2">
+    <form onSubmit={handleSubmit} className="relative">
+      <div className="flex items-end gap-3">
+        {/* Input Container */}
         <div className="flex-1 relative">
-          <input
-            type="text"
+          <textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Ask me anything about any topic..."
-            className="w-full px-4 py-3 pr-12 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            disabled={loading}
+            onKeyPress={handleKeyPress}
+            placeholder="Ask me anything about the lesson..."
+            rows={1}
+            className="w-full px-4 py-3 pr-20 glass backdrop-blur-sm border border-white/20 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300 text-white placeholder-white/60 resize-none text-sm leading-relaxed"
+            style={{ minHeight: '48px', maxHeight: '120px' }}
           />
-          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
+          
+          {/* Input Actions */}
+          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
             <button
               type="button"
-              className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-              disabled={loading}
+              className="p-1.5 text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-all duration-200"
+              title="Attach file"
             >
               <Paperclip className="w-4 h-4" />
             </button>
             <button
               type="button"
-              className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-              disabled={loading}
+              className="p-1.5 text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-all duration-200"
+              title="Add image"
             >
-              <Smile className="w-4 h-4" />
+              <Image className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={toggleRecording}
+              className={`p-1.5 rounded-lg transition-all duration-200 ${
+                isRecording 
+                  ? 'text-red-400 bg-red-500/20 animate-pulse' 
+                  : 'text-white/60 hover:text-white hover:bg-white/10'
+              }`}
+              title={isRecording ? "Stop recording" : "Voice message"}
+            >
+              <Mic className="w-4 h-4" />
             </button>
           </div>
         </div>
+
+        {/* Send Button */}
         <button
           type="submit"
-          disabled={!message.trim() || loading}
-          className="px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          disabled={!message.trim()}
+          className={`p-3 rounded-2xl transition-all duration-300 shadow-lg ${
+            message.trim()
+              ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 hover:scale-105 hover:shadow-xl'
+              : 'glass backdrop-blur-sm border border-white/20 text-white/40 cursor-not-allowed'
+          }`}
+          title="Send message"
         >
-          {loading ? (
-            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-          ) : (
-            <Send className="w-4 h-4" />
-          )}
+          <Send className="w-5 h-5" />
         </button>
       </div>
+
+      {/* Recording Indicator */}
+      {isRecording && (
+        <div className="absolute -top-12 left-0 right-0 flex items-center justify-center">
+          <div className="glass backdrop-blur-sm rounded-full px-4 py-2 border border-white/20">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
+              <span className="text-white/80 text-sm">Recording...</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Character Counter */}
+      {message.length > 0 && (
+        <div className="absolute -top-8 right-0">
+          <span className={`text-xs ${
+            message.length > 500 ? 'text-red-400' : 'text-white/60'
+          }`}>
+            {message.length}/1000
+          </span>
+        </div>
+      )}
     </form>
   );
 }
