@@ -5,10 +5,21 @@ import Sidebar from '@/components/Sidebar';
 import GeneratedContent from '@/components/GeneratedContent';
 import Chatbot from '@/components/Chatbot';
 import { Menu, X } from 'lucide-react';
+import type { GeneratedSection } from '@/types/api';
 
 export default function Home() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [generatedSections, setGeneratedSections] = useState<GeneratedSection[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleNewGeneratedContent = (sections: GeneratedSection[]) => {
+    setGeneratedSections(sections);
+  };
+
+  const handleGeneratingStateChange = (generating: boolean) => {
+    setIsGenerating(generating);
+  };
 
   return (
     <div className="h-screen bg-gray-50 flex overflow-hidden">
@@ -56,12 +67,18 @@ export default function Home() {
 
         {/* Generated Content */}
         <div className="flex-1 overflow-hidden">
-          <GeneratedContent />
+          <GeneratedContent 
+            sections={generatedSections} 
+            isGenerating={isGenerating}
+          />
         </div>
 
         {/* Desktop Chatbot */}
         <div className="hidden lg:flex">
-          <Chatbot />
+          <Chatbot 
+            onNewGeneratedContent={handleNewGeneratedContent}
+            onGeneratingStateChange={handleGeneratingStateChange}
+          />
         </div>
 
         {/* Mobile Chatbot */}
@@ -77,7 +94,10 @@ export default function Home() {
               </button>
             </div>
             <div className="h-full">
-              <Chatbot />
+              <Chatbot 
+                onNewGeneratedContent={handleNewGeneratedContent}
+                onGeneratingStateChange={handleGeneratingStateChange}
+              />
             </div>
           </div>
         )}
