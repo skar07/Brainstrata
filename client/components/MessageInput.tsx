@@ -51,20 +51,19 @@ export default function MessageInput({
       if (!res.ok) throw new Error(await res.text());
       const data: GenerateResponse = await res.json();
       
-      // Send the simple response back to chatbot for backward compatibility
+      // Send the response back to chatbot
       onSendMessage(prompt, data.text);
 
-      // If we have multiple responses, create sections for GeneratedContent
-      if (data.responses && data.responses.length > 0 && onNewGeneratedContent) {
-        const sectionTitles = generateSectionTitles(prompt);
-        
-        const generatedSections: GeneratedSection[] = data.responses.map((response, index) => ({
-          id: `section-${Date.now()}-${index}`,
-          title: sectionTitles[index] || `Response ${index + 1}`,
-          prompt: response.prompt,
-          content: response.response,
-          timestamp: new Date()
-        }));
+      // Create a section for the middle area with the generated content
+      if (data.text && onNewGeneratedContent) {
+        const generatedSections: GeneratedSection[] = [{
+          id: `section-${Date.now()}`,
+          title: `Generated Content: ${prompt}`,
+          prompt: prompt,
+          content: data.text,
+          timestamp: new Date(),
+          quizQuestions: data.quizQuestions || [] // Include quiz questions from API response
+        }];
 
         onNewGeneratedContent(generatedSections);
       }

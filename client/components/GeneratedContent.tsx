@@ -4,6 +4,7 @@ import { useState } from 'react';
 import React from 'react';
 import VisualBlock from './VisualBlock';
 import { ChevronRight, BookOpen, Lightbulb, CheckCircle, FileText, Brain, Search, Microscope, Loader2 } from 'lucide-react';
+import GeneratedQuiz from './GeneratedQuiz';
 import type { GeneratedSection } from '../types/api';
 
 interface GeneratedContentProps {
@@ -139,6 +140,23 @@ export default function GeneratedContent({
                   </div>
                 </div>
                 <p className="text-gray-700 leading-relaxed mb-6">{section.content}</p>
+                
+                {/* Quiz Section for dynamic content */}
+                {isDynamicContent && section.quizQuestions && section.quizQuestions.length > 0 && (
+                  <div className="mt-8 pt-6 border-t border-gray-200">
+                    <div className="mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">🧠 Test Your Knowledge</h3>
+                      <p className="text-sm text-gray-600">Take this quiz to check your understanding of the content above.</p>
+                    </div>
+                    <GeneratedQuiz 
+                      questions={section.quizQuestions}
+                      onComplete={(score, total) => {
+                        console.log(`Quiz completed: ${score}/${total}`);
+                        // You can add additional handling here like showing achievements
+                      }}
+                    />
+                  </div>
+                )}
                 
 {!isDynamicContent && index === currentSection && !isGenerating && (
                   <button
