@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import MessageInput from './MessageInput';
 import { Bot, User, ChevronLeft, Copy, ThumbsUp, ThumbsDown, Sparkles, MessageCircle, Zap, Star, Brain, Lightbulb, Target, Coffee } from 'lucide-react';
 
@@ -15,6 +15,36 @@ interface ChatbotProps {
   isCollapsed?: boolean;
   setIsCollapsed?: (collapsed: boolean) => void;
 }
+
+// Consistent timestamp formatting function
+const formatTimestamp = (date: Date): string => {
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const hour12 = hours % 12 || 12;
+  const minuteStr = minutes.toString().padStart(2, '0');
+  return `${hour12}:${minuteStr} ${ampm}`;
+};
+
+// Client-side only timestamp component
+const Timestamp = ({ timestamp }: { timestamp: Date }) => {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    // Return a placeholder that matches the expected format during SSR
+    return <span className="text-xs opacity-70 mt-2 block">--:-- --</span>;
+  }
+
+  return (
+    <span className="text-xs opacity-70 mt-2 block">
+      {formatTimestamp(timestamp)}
+    </span>
+  );
+};
 
 export default function Chatbot({ isCollapsed: externalIsCollapsed, setIsCollapsed: externalSetIsCollapsed }: ChatbotProps = {}) {
   const [messages, setMessages] = useState<Message[]>([
@@ -87,7 +117,7 @@ export default function Chatbot({ isCollapsed: externalIsCollapsed, setIsCollaps
 
   return (
     <div 
-      className={`bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 flex flex-col transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-96'} h-screen max-h-screen relative shadow-2xl border-l border-white/20`}
+      className={`bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 flex flex-col transition-all duration-300 ${isCollapsed ? 'w-14' : 'w-64'} h-screen max-h-screen relative shadow-2xl border-l border-white/20`}
       onClick={(e) => e.stopPropagation()}
       style={{ overflow: 'visible' }}
     >
@@ -111,29 +141,29 @@ export default function Chatbot({ isCollapsed: externalIsCollapsed, setIsCollaps
           e.stopPropagation();
           setIsCollapsed(!isCollapsed);
         }}
-        className={`fixed top-1/2 transform -translate-y-1/2 z-50 w-10 h-14 bg-gradient-to-r from-purple-600 via-pink-600 to-violet-700 shadow-2xl hover:shadow-purple-500/70 transition-all duration-300 flex items-center justify-center group border-2 border-white/60 hover:scale-110 animate-pulse rounded-l-2xl ${
+        className={`fixed top-1/2 transform -translate-y-1/2 z-50 w-7 h-10 bg-gradient-to-r from-purple-600 via-pink-600 to-violet-700 shadow-2xl hover:shadow-purple-500/70 transition-all duration-300 flex items-center justify-center group border-2 border-white/60 hover:scale-110 animate-pulse rounded-l-xl ${
           isCollapsed 
-            ? 'right-12' 
-            : 'right-96'
+            ? 'right-8' 
+            : 'right-64'
         }`}
         title={isCollapsed ? "Expand AI Assistant" : "Collapse AI Assistant"}
         style={{ zIndex: 9999 }}
       >
-        <ChevronLeft className={`w-5 h-5 text-white drop-shadow-2xl transition-all duration-300 ${isCollapsed ? 'rotate-180' : 'rotate-0'}`} />
-        <div className="absolute inset-0 bg-white/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-l-2xl"></div>
+        <ChevronLeft className={`w-3 h-3 text-white drop-shadow-2xl transition-all duration-300 ${isCollapsed ? 'rotate-180' : 'rotate-0'}`} />
+        <div className="absolute inset-0 bg-white/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-l-xl"></div>
         {/* Extra visibility indicator */}
-        <div className="absolute -top-1 -right-1 w-2 h-2 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full animate-ping"></div>
+        <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full animate-ping"></div>
       </button>
 
       {/* Enhanced Header - Fixed */}
-      <div className={`flex-shrink-0 p-6 border-b border-white/20 bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-violet-500/20 backdrop-blur-sm relative z-10 ${isCollapsed ? 'px-4' : ''}`}>
-        <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
-          <div className="w-12 h-12 bg-gradient-to-br from-purple-500 via-pink-500 to-violet-600 rounded-xl flex items-center justify-center shadow-lg animate-pulse">
-            <Bot className="w-6 h-6 text-white" />
+      <div className={`flex-shrink-0 p-4 border-b border-white/20 bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-violet-500/20 backdrop-blur-sm relative z-10 ${isCollapsed ? 'px-3' : ''}`}>
+        <div className={`flex items-center gap-2 ${isCollapsed ? 'justify-center' : ''}`}>
+          <div className="w-8 h-8 bg-gradient-to-br from-purple-500 via-pink-500 to-violet-600 rounded-lg flex items-center justify-center shadow-lg animate-pulse">
+            <Bot className="w-4 h-4 text-white" />
           </div>
           {!isCollapsed && (
             <div>
-              <h2 className="text-lg font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-violet-300 bg-clip-text text-transparent">
+              <h2 className="text-sm font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-violet-300 bg-clip-text text-transparent">
                 AI Assistant
               </h2>
               <p className="text-xs text-white/60 font-medium">Always here to help</p>
@@ -144,11 +174,11 @@ export default function Chatbot({ isCollapsed: externalIsCollapsed, setIsCollaps
 
       {/* AI Features Preview - Fixed */}
       {!isCollapsed && (
-        <div className="flex-shrink-0 p-4 border-b border-white/10 bg-gradient-to-r from-blue-500/10 to-purple-500/10 relative z-10">
-          <div className="grid grid-cols-3 gap-2">
+        <div className="flex-shrink-0 p-3 border-b border-white/10 bg-gradient-to-r from-blue-500/10 to-purple-500/10 relative z-10">
+          <div className="grid grid-cols-3 gap-1.5">
             {aiFeatures.map((feature, index) => (
-              <div key={index} className="text-center p-3 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 hover:bg-white/20 transition-all duration-300 group">
-                <feature.icon className="w-5 h-5 text-white/70 mx-auto mb-2 group-hover:text-white group-hover:scale-110 transition-all duration-300" />
+              <div key={index} className="text-center p-2 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 hover:bg-white/20 transition-all duration-300 group">
+                <feature.icon className="w-3 h-3 text-white/70 mx-auto mb-1 group-hover:text-white group-hover:scale-110 transition-all duration-300" />
                 <p className="text-xs text-white/60 font-medium">{feature.label}</p>
               </div>
             ))}
@@ -159,7 +189,7 @@ export default function Chatbot({ isCollapsed: externalIsCollapsed, setIsCollaps
       {!isCollapsed && (
         <>
           {/* Enhanced Messages - Scrollable Container */}
-          <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-6 relative z-10 scrollbar-thin scrollbar-thumb-purple-500 scrollbar-track-white/10">
+          <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-4 relative z-10 scrollbar-thin scrollbar-thumb-purple-500 scrollbar-track-white/10">
             {messages.map((message) => (
               <div
                 key={message.id}
@@ -167,46 +197,44 @@ export default function Chatbot({ isCollapsed: externalIsCollapsed, setIsCollaps
               >
                 {message.isBot && (
                   <div 
-                    className="w-10 h-10 bg-gradient-to-br from-purple-500 via-pink-500 to-violet-600 rounded-xl flex items-center justify-center flex-shrink-0 cursor-default shadow-lg animate-pulse"
+                    className="w-7 h-7 bg-gradient-to-br from-purple-500 via-pink-500 to-violet-600 rounded-lg flex items-center justify-center flex-shrink-0 cursor-default shadow-lg animate-pulse"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <Bot className="w-5 h-5 text-white" />
+                    <Bot className="w-3 h-3 text-white" />
                   </div>
                 )}
                 
                 <div
-                  className={`max-w-[80%] p-4 rounded-2xl relative group transition-all duration-300 ${
+                  className={`max-w-[80%] p-3 rounded-xl relative group transition-all duration-300 ${
                     message.isBot
                       ? 'bg-gradient-to-br from-white/20 via-white/10 to-white/20 backdrop-blur-sm text-white border border-white/30 shadow-lg hover:shadow-xl'
                       : 'bg-gradient-to-br from-purple-500 via-pink-500 to-violet-600 text-white shadow-lg hover:shadow-xl hover:scale-[1.02]'
                   }`}
                 >
-                  <p className="text-sm leading-relaxed">{message.content}</p>
-                  <span className="text-xs opacity-70 mt-3 block">
-                    {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
+                  <p className="text-xs leading-relaxed">{message.content}</p>
+                  <Timestamp timestamp={message.timestamp} />
 
                   {message.isBot && (
-                    <div className="absolute -right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                      <div className="flex items-center gap-1 bg-gradient-to-r from-white/20 to-white/10 backdrop-blur-sm rounded-xl p-1 shadow-lg border border-white/30">
+                    <div className="absolute -right-1.5 top-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <div className="flex items-center gap-0.5 bg-gradient-to-r from-white/20 to-white/10 backdrop-blur-sm rounded-lg p-0.5 shadow-lg border border-white/30">
                         <button
                           onClick={() => copyMessage(message.content)}
-                          className="p-1 hover:bg-white/30 rounded-lg text-white/70 hover:text-white transition-all duration-300 hover:scale-110"
+                          className="p-0.5 hover:bg-white/30 rounded text-white/70 hover:text-white transition-all duration-300 hover:scale-110"
                           title="Copy message"
                         >
-                          <Copy className="w-3 h-3" />
+                          <Copy className="w-2.5 h-2.5" />
                         </button>
                         <button 
-                          className="p-1 hover:bg-white/30 rounded-lg text-white/70 hover:text-white transition-all duration-300 hover:scale-110"
+                          className="p-0.5 hover:bg-white/30 rounded text-white/70 hover:text-white transition-all duration-300 hover:scale-110"
                           title="Like message"
                         >
-                          <ThumbsUp className="w-3 h-3" />
+                          <ThumbsUp className="w-2.5 h-2.5" />
                         </button>
                         <button 
-                          className="p-1 hover:bg-white/30 rounded-lg text-white/70 hover:text-white transition-all duration-300 hover:scale-110"
+                          className="p-0.5 hover:bg-white/30 rounded text-white/70 hover:text-white transition-all duration-300 hover:scale-110"
                           title="Dislike message"
                         >
-                          <ThumbsDown className="w-3 h-3" />
+                          <ThumbsDown className="w-2.5 h-2.5" />
                         </button>
                       </div>
                     </div>
@@ -214,8 +242,8 @@ export default function Chatbot({ isCollapsed: externalIsCollapsed, setIsCollaps
                 </div>
 
                 {!message.isBot && (
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 via-cyan-500 to-teal-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
-                    <User className="w-5 h-5 text-white" />
+                  <div className="w-7 h-7 bg-gradient-to-br from-blue-500 via-cyan-500 to-teal-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg">
+                    <User className="w-3 h-3 text-white" />
                   </div>
                 )}
               </div>
@@ -223,15 +251,15 @@ export default function Chatbot({ isCollapsed: externalIsCollapsed, setIsCollaps
 
             {/* Enhanced Typing Indicator */}
             {isTyping && (
-              <div className="flex gap-3 justify-start animate-fadeInUp">
-                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 via-pink-500 to-violet-600 rounded-xl flex items-center justify-center shadow-lg animate-pulse">
-                  <Bot className="w-5 h-5 text-white" />
+              <div className="flex gap-2 justify-start animate-fadeInUp">
+                <div className="w-7 h-7 bg-gradient-to-br from-purple-500 via-pink-500 to-violet-600 rounded-lg flex items-center justify-center shadow-lg animate-pulse">
+                  <Bot className="w-3 h-3 text-white" />
                 </div>
-                <div className="bg-gradient-to-br from-white/20 via-white/10 to-white/20 backdrop-blur-sm p-4 rounded-2xl border border-white/30 shadow-lg">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-white/70 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-white/70 rounded-full animate-bounce animation-delay-200"></div>
-                    <div className="w-2 h-2 bg-white/70 rounded-full animate-bounce animation-delay-400"></div>
+                <div className="bg-gradient-to-br from-white/20 via-white/10 to-white/20 backdrop-blur-sm p-3 rounded-xl border border-white/30 shadow-lg">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 bg-white/70 rounded-full animate-bounce"></div>
+                    <div className="w-1.5 h-1.5 bg-white/70 rounded-full animate-bounce animation-delay-200"></div>
+                    <div className="w-1.5 h-1.5 bg-white/70 rounded-full animate-bounce animation-delay-400"></div>
                   </div>
                 </div>
               </div>
@@ -239,16 +267,16 @@ export default function Chatbot({ isCollapsed: externalIsCollapsed, setIsCollaps
           </div>
 
           {/* Enhanced Quick Questions - Fixed */}
-          <div className="flex-shrink-0 p-4 border-t border-white/20 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-violet-500/10 backdrop-blur-sm relative z-10">
-            <p className="text-xs text-white/70 mb-3 font-semibold">Quick Questions</p>
-            <div className="grid grid-cols-2 gap-2">
+          <div className="flex-shrink-0 p-3 border-t border-white/20 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-violet-500/10 backdrop-blur-sm relative z-10">
+            <p className="text-xs text-white/70 mb-2 font-semibold">Quick Questions</p>
+            <div className="grid grid-cols-2 gap-1.5">
               {quickQuestions.map((question, index) => (
                 <button
                   key={index}
                   onClick={() => handleSendMessage(question.text)}
-                  className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-sm border border-white/20 rounded-xl text-xs text-white/80 hover:text-white hover:bg-white/20 transition-all duration-300 hover:scale-105 group"
+                  className="flex items-center gap-1.5 px-2 py-1.5 bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-sm border border-white/20 rounded-lg text-xs text-white/80 hover:text-white hover:bg-white/20 transition-all duration-300 hover:scale-105 group"
                 >
-                  <question.icon className="w-3 h-3 group-hover:scale-110 transition-transform" />
+                  <question.icon className="w-2.5 h-2.5 group-hover:scale-110 transition-transform" />
                   <span className="truncate">{question.text}</span>
                 </button>
               ))}
@@ -256,7 +284,7 @@ export default function Chatbot({ isCollapsed: externalIsCollapsed, setIsCollaps
           </div>
 
           {/* Enhanced Message Input - Fixed */}
-          <div className="flex-shrink-0 p-4 border-t border-white/20 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 backdrop-blur-sm relative z-10">
+          <div className="flex-shrink-0 p-3 border-t border-white/20 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 backdrop-blur-sm relative z-10">
             <MessageInput onSendMessage={handleSendMessage} />
           </div>
         </>
@@ -264,17 +292,17 @@ export default function Chatbot({ isCollapsed: externalIsCollapsed, setIsCollaps
 
       {/* Collapsed State Content */}
       {isCollapsed && (
-        <div className="flex flex-col items-center justify-center flex-1 p-4 relative z-10">
-          <div className="w-12 h-12 bg-gradient-to-br from-purple-500 via-pink-500 to-violet-600 rounded-xl flex items-center justify-center shadow-lg animate-pulse mb-4">
-            <MessageCircle className="w-6 h-6 text-white" />
+        <div className="flex flex-col items-center justify-center flex-1 p-3 relative z-10">
+          <div className="w-10 h-10 bg-gradient-to-br from-purple-500 via-pink-500 to-violet-600 rounded-lg flex items-center justify-center shadow-lg animate-pulse mb-3">
+            <MessageCircle className="w-5 h-5 text-white" />
           </div>
           <div className="text-center">
-            <p className="text-white/60 text-xs font-medium mb-2">AI Chat</p>
-            <div className="w-2 h-2 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full animate-pulse"></div>
+            <p className="text-white/60 text-xs font-medium mb-1.5">AI Chat</p>
+            <div className="w-1.5 h-1.5 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full animate-pulse"></div>
           </div>
           
           {/* Notification badge */}
-          <div className="absolute top-4 right-4 w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center shadow-lg">
+          <div className="absolute top-3 right-3 w-5 h-5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center shadow-lg">
             <span className="text-white text-xs font-bold">{messages.length}</span>
           </div>
         </div>

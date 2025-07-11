@@ -46,7 +46,7 @@ const DialogContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTML
     <div
       ref={ref}
       className={clsx(
-        "bg-white rounded-lg shadow-lg p-6 border border-gray-200",
+        "bg-white rounded-lg shadow-lg p-4 border border-gray-200",
         className
       )}
       {...props}
@@ -72,7 +72,7 @@ const DialogTitle = React.forwardRef<HTMLHeadingElement, React.HTMLAttributes<HT
   ({ className, ...props }, ref) => (
     <h2
       ref={ref}
-      className={clsx("text-lg font-semibold leading-none tracking-tight", className)}
+      className={clsx("text-base font-semibold leading-none tracking-tight", className)}
       {...props}
     />
   )
@@ -83,7 +83,7 @@ const DialogDescription = React.forwardRef<HTMLParagraphElement, React.HTMLAttri
   ({ className, ...props }, ref) => (
     <p
       ref={ref}
-      className={clsx("text-sm text-gray-500", className)}
+      className={clsx("text-xs text-gray-500", className)}
       {...props}
     />
   )
