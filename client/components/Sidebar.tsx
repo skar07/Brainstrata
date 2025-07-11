@@ -99,7 +99,7 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
   ];
 
   return (
-    <div className={`bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 ${isCollapsed ? 'w-20' : 'w-80'} h-screen flex flex-col transition-all duration-300 ease-in-out relative shadow-2xl border-r border-white/10`}>
+    <div className={`bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 ${isCollapsed ? 'w-14' : 'w-54'} h-screen flex flex-col transition-all duration-300 ease-in-out relative shadow-2xl border-r border-white/10`}>
       {/* Enhanced Background Effects */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-20 left-1/2 transform -translate-x-1/2 w-40 h-40 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full blur-3xl animate-pulse"></div>
@@ -115,18 +115,18 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
       </div>
 
       {/* Header - Clickable Logo */}
-      <div className={`p-6 border-b border-white/10 relative z-10 ${isCollapsed ? 'px-4' : ''}`}>
+      <div className={`p-4 border-b border-white/10 relative z-10 ${isCollapsed ? 'px-3' : ''}`}>
         <div 
-          className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''} cursor-pointer hover:scale-105 transition-all duration-300`}
+          className={`flex items-center gap-2 ${isCollapsed ? 'justify-center' : ''} cursor-pointer hover:scale-105 transition-all duration-300`}
           onClick={() => setIsCollapsed(!isCollapsed)}
           title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
         >
-          <div className="w-10 h-10 bg-gradient-to-br from-purple-500 via-pink-500 to-violet-600 rounded-xl flex items-center justify-center shadow-lg animate-pulse hover:shadow-xl hover:from-purple-600 hover:via-pink-600 hover:to-violet-700 transition-all duration-300">
-            <Sparkles className="w-6 h-6 text-white" />
+          <div className="w-7 h-7 bg-gradient-to-br from-purple-500 via-pink-500 to-violet-600 rounded-lg flex items-center justify-center shadow-lg animate-pulse hover:shadow-xl hover:from-purple-600 hover:via-pink-600 hover:to-violet-700 transition-all duration-300">
+            <Sparkles className="w-4 h-4 text-white" />
           </div>
           {!isCollapsed && (
             <div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-violet-300 bg-clip-text text-transparent">
+              <h1 className="text-base font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-violet-300 bg-clip-text text-transparent">
                 BrainStrata
               </h1>
               <p className="text-xs text-white/60 font-medium">Learning Platform</p>
@@ -137,15 +137,15 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
 
       {/* Search Bar */}
       {!isCollapsed && (
-        <div className="p-4 relative z-10">
+        <div className="p-3 relative z-10">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/40" />
+            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-white/40" />
             <input
               type="text"
               placeholder="Search courses..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300 text-white placeholder-white/40 text-sm"
+              className="w-full pl-7 pr-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300 text-white placeholder-white/40 text-xs"
             />
           </div>
         </div>
@@ -153,15 +153,15 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
 
       {/* Quick Actions */}
       {!isCollapsed && (
-        <div className="px-4 mb-4 relative z-10">
-          <div className="flex items-center gap-2">
+        <div className="px-3 mb-3 relative z-10">
+          <div className="flex items-center gap-1.5">
             {quickActions.map((action, index) => (
               <button
                 key={index}
-                className={`flex-1 p-3 bg-gradient-to-r ${action.color} rounded-xl transition-all duration-300 hover:scale-105 hover:shadow-lg group`}
+                className={`flex-1 p-2 bg-gradient-to-r ${action.color} rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-lg group`}
                 title={action.label}
               >
-                <action.icon className="w-4 h-4 text-white mx-auto group-hover:scale-110 transition-transform" />
+                <action.icon className="w-3 h-3 text-white mx-auto group-hover:scale-110 transition-transform" />
               </button>
             ))}
           </div>
@@ -169,33 +169,33 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
       )}
 
       {/* Navigation Menu */}
-      <div className="flex-1 overflow-y-auto p-4 relative z-10">
-        <div className="mb-6">
-          <h2 className={`text-xs font-bold text-white/60 mb-4 uppercase tracking-wider ${isCollapsed ? 'text-center' : ''}`}>
+      <div className="flex-1 overflow-y-auto p-3 relative z-10">
+        <div className="mb-4">
+          <h2 className={`text-xs font-bold text-white/60 mb-3 uppercase tracking-wider ${isCollapsed ? 'text-center' : ''}`}>
             {isCollapsed ? 'M' : 'Main Menu'}
           </h2>
-          <nav className="space-y-2">
+          <nav className="space-y-1.5">
             {menuItems.map((item, index) => (
               <button
                 key={index}
                 onMouseEnter={() => setHoveredItem(index)}
                 onMouseLeave={() => setHoveredItem(null)}
-                className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all duration-300 group relative overflow-hidden ${
+                className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-300 group relative overflow-hidden ${
                   item.active
                     ? 'bg-gradient-to-r from-purple-500/30 to-pink-500/30 text-white border border-purple-500/50 shadow-lg'
                     : 'text-white/70 hover:bg-white/10 hover:text-white'
                 } ${isCollapsed ? 'justify-center' : ''}`}
               >
                 {/* Hover effect background */}
-                <div className={`absolute inset-0 bg-gradient-to-r ${item.color} opacity-0 group-hover:opacity-20 transition-opacity duration-300 rounded-xl`} />
+                <div className={`absolute inset-0 bg-gradient-to-r ${item.color} opacity-0 group-hover:opacity-20 transition-opacity duration-300 rounded-lg`} />
                 
                 {/* Icon container */}
-                <div className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-300 ${
+                <div className={`w-5 h-5 flex items-center justify-center rounded transition-all duration-300 ${
                   item.active 
                     ? `bg-gradient-to-r ${item.color} shadow-lg` 
                     : 'group-hover:bg-white/20'
                 }`}>
-                  <item.icon className={`w-5 h-5 transition-all duration-300 ${
+                  <item.icon className={`w-3 h-3 transition-all duration-300 ${
                     item.active 
                       ? 'text-white' 
                       : 'text-white/70 group-hover:text-white group-hover:scale-110'
