@@ -6,12 +6,14 @@ import GeneratedContent from '@/components/GeneratedContent';
 import Chatbot from '@/components/Chatbot';
 import { Menu, X } from 'lucide-react';
 import type { GeneratedSection } from '@/types/api';
+import { PromptChain } from '@/components/promptchaining';
 
 export default function Home() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [generatedSections, setGeneratedSections] = useState<GeneratedSection[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [currentPromptChain, setCurrentPromptChain] = useState<PromptChain | undefined>(undefined);
 
   const handleNewGeneratedContent = (sections: GeneratedSection[]) => {
     setGeneratedSections(sections);
@@ -19,6 +21,10 @@ export default function Home() {
 
   const handleGeneratingStateChange = (generating: boolean) => {
     setIsGenerating(generating);
+  };
+
+  const handleChainUpdate = (chain: PromptChain) => {
+    setCurrentPromptChain(chain);
   };
 
   return (
@@ -56,7 +62,7 @@ export default function Home() {
           >
             <Menu className="w-5 h-5" />
           </button>
-          <h1 className="text-lg font-semibold">BrainStarta</h1>
+          <h1 className="text-lg font-semibold">BrainStrata</h1>
           <button
             onClick={() => setIsChatOpen(!isChatOpen)}
             className="p-2 hover:bg-gray-100 rounded-lg"
@@ -70,6 +76,7 @@ export default function Home() {
           <GeneratedContent 
             sections={generatedSections} 
             isGenerating={isGenerating}
+            promptChain={currentPromptChain}
           />
         </div>
 
@@ -78,6 +85,7 @@ export default function Home() {
           <Chatbot 
             onNewGeneratedContent={handleNewGeneratedContent}
             onGeneratingStateChange={handleGeneratingStateChange}
+            onChainUpdate={handleChainUpdate}
           />
         </div>
 
@@ -97,6 +105,7 @@ export default function Home() {
               <Chatbot 
                 onNewGeneratedContent={handleNewGeneratedContent}
                 onGeneratingStateChange={handleGeneratingStateChange}
+                onChainUpdate={handleChainUpdate}
               />
             </div>
           </div>

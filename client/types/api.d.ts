@@ -1,5 +1,7 @@
 export interface GenerateRequest {
   prompt: string;
+  context?: string;
+  isChained?: boolean;
 }
 
 export interface PromptResponse {
@@ -18,4 +20,6 @@ export interface GeneratedSection {
   prompt: string;
   content: string;
   timestamp: Date;
+  chainDepth?: number;
+  isChained?: boolean;
 }
