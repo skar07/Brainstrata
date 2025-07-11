@@ -124,7 +124,3 @@ Please pay special attention to:
 - Are there any potential side effects?
 - Is the code maintainable and readable?
 - Are there any missing edge cases?
-
----
-
-*Thanks for contributing! 🚀*
