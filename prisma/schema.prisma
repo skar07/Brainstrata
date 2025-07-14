@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../server/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(uuid())
+  name        String
+  email       String?  @unique
+  password    String?
+  provider    String?  // e.g., 'google', 'local', etc.
+  providerId  String?  // e.g., Google sub claim
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  topics      Topic[]
+
+  @@unique([provider, providerId])
+}
+
+model Topic {
+  id          String     @id @default(uuid())
+  title       String
+  description String
+  createdBy   User       @relation(fields: [createdById], references: [id])
+  createdById String
+  createdAt   DateTime   @default(now())
+  contents    Content[]
+  activities  Activity[]
+}
+
+model Content {
+  id         String   @id @default(uuid())
+  topic      Topic    @relation(fields: [topicId], references: [id])
+  topicId    String
+  contentType String
+  data       Json
+  createdAt  DateTime @default(now())
+}
+
+model Activity {
+  id        String   @id @default(uuid())
+  topic     Topic    @relation(fields: [topicId], references: [id])
+  topicId   String
+  type      String
+  data      Json
+  createdAt DateTime @default(now())
+} 
