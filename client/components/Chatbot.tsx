@@ -1,19 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import MessageInput from './MessageInput';
 import { Bot, User, ChevronLeft, Copy, ThumbsUp, ThumbsDown, Sparkles, MessageCircle, Zap, Star, Brain, Lightbulb, Target, Coffee } from 'lucide-react';
+import type { GeneratedSection } from '../types/api';
+import { PromptChain } from './promptchaining';
 
 interface Message {
   id: string;
   content: string;
   isBot: boolean;
   timestamp: Date;
+  isChained?: boolean;
 }
 
 interface ChatbotProps {
   isCollapsed?: boolean;
   setIsCollapsed?: (collapsed: boolean) => void;
+  onNewGeneratedContent?: (sections: GeneratedSection[]) => void;
+  onGeneratingStateChange?: (generating: boolean) => void;
+  onChainUpdate?: (chain: PromptChain) => void;
 }
 
 // Consistent timestamp formatting function
@@ -46,7 +52,13 @@ const Timestamp = ({ timestamp }: { timestamp: Date }) => {
   );
 };
 
-export default function Chatbot({ isCollapsed: externalIsCollapsed, setIsCollapsed: externalSetIsCollapsed }: ChatbotProps = {}) {
+export default function Chatbot({ 
+  isCollapsed: externalIsCollapsed, 
+  setIsCollapsed: externalSetIsCollapsed,
+  onNewGeneratedContent,
+  onGeneratingStateChange,
+  onChainUpdate
+}: ChatbotProps = {}) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -58,33 +70,84 @@ export default function Chatbot({ isCollapsed: externalIsCollapsed, setIsCollaps
 
   const [isTyping, setIsTyping] = useState(false);
   const [internalIsCollapsed, setInternalIsCollapsed] = useState(false);
+  const promptChainRef = useRef<PromptChain | null>(null);
   
   const isCollapsed = externalIsCollapsed ?? internalIsCollapsed;
   const setIsCollapsed = externalSetIsCollapsed ?? setInternalIsCollapsed;
 
-  const handleSendMessage = (content: string) => {
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      content,
-      isBot: false,
-      timestamp: new Date(),
-    };
+  // Initialize prompt chain
+  useEffect(() => {
+    if (!promptChainRef.current) {
+      promptChainRef.current = new PromptChain(5);
+      onChainUpdate?.(promptChainRef.current);
+    }
+  }, [onChainUpdate]);
 
-    setMessages(prev => [...prev, userMessage]);
-    setIsTyping(true);
+  const handleSendMessage = (content: string, response?: string) => {
+    if (!response) {
+      // First call - just the user message
+      const isChainedMessage = promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 0 : false;
+      
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        content,
+        isBot: false,
+        timestamp: new Date(),
+        isChained: isChainedMessage,
+      };
 
-    // Simulate AI response
-    setTimeout(() => {
+      setMessages(prev => [...prev, userMessage]);
+      setIsTyping(true);
+      onGeneratingStateChange?.(true);
+
+      // Add to prompt chain
+      if (promptChainRef.current) {
+        promptChainRef.current.addPrompt(content);
+        onChainUpdate?.(promptChainRef.current);
+      }
+
+      // Simulate AI response
+      setTimeout(() => {
+        const botResponse: Message = {
+          id: (Date.now() + 1).toString(),
+          content: generateResponse(content),
+          isBot: true,
+          timestamp: new Date(),
+          isChained: promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 1 : false,
+        };
+
+        setMessages(prev => [...prev, botResponse]);
+        setIsTyping(false);
+        onGeneratingStateChange?.(false);
+
+        // Update chain with response
+        if (promptChainRef.current) {
+          // The response is already handled in the addPrompt method
+          onChainUpdate?.(promptChainRef.current);
+        }
+      }, 1500);
+    } else {
+      // Second call - add the AI response
+      const isChainedResponse = promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 1 : false;
+      
       const botResponse: Message = {
         id: (Date.now() + 1).toString(),
-        content: generateResponse(content),
+        content: response,
         isBot: true,
         timestamp: new Date(),
+        isChained: isChainedResponse,
       };
 
       setMessages(prev => [...prev, botResponse]);
       setIsTyping(false);
-    }, 1500);
+      onGeneratingStateChange?.(false);
+
+      // Update chain with response
+      if (promptChainRef.current) {
+        // The response is already handled in the addPrompt method
+        onChainUpdate?.(promptChainRef.current);
+      }
+    }
   };
 
   const generateResponse = (input: string): string => {
@@ -96,6 +159,25 @@ export default function Chatbot({ isCollapsed: externalIsCollapsed, setIsCollaps
       "Perfect timing for this question! What you're asking about connects to several other important biological processes. Let me explain...",
     ];
     return responses[Math.floor(Math.random() * responses.length)];
+  };
+
+  const handleChainUpdate = (chain: PromptChain) => {
+    promptChainRef.current = chain;
+    onChainUpdate?.(chain);
+  };
+
+  const resetChain = () => {
+    promptChainRef.current = new PromptChain(5);
+    onChainUpdate?.(promptChainRef.current);
+    
+    // Add a system message about chain reset
+    const resetMessage: Message = {
+      id: Date.now().toString(),
+      content: "🔄 Conversation context has been reset. Starting fresh conversation.",
+      isBot: true,
+      timestamp: new Date(),
+    };
+    setMessages(prev => [...prev, resetMessage]);
   };
 
   const copyMessage = (content: string) => {
@@ -114,6 +196,8 @@ export default function Chatbot({ isCollapsed: externalIsCollapsed, setIsCollaps
     { icon: MessageCircle, label: "Instant Help", description: "24/7 learning support" },
     { icon: Coffee, label: "Study Buddy", description: "Personalized assistance" },
   ];
+
+  const currentChainDepth = promptChainRef.current?.getCurrentDepth() || 0;
 
   return (
     <div 
@@ -285,7 +369,12 @@ export default function Chatbot({ isCollapsed: externalIsCollapsed, setIsCollaps
 
           {/* Enhanced Message Input - Fixed */}
           <div className="flex-shrink-0 p-3 border-t border-white/20 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 backdrop-blur-sm relative z-10">
-            <MessageInput onSendMessage={handleSendMessage} />
+            <MessageInput 
+              onSendMessage={handleSendMessage}
+              onNewGeneratedContent={onNewGeneratedContent}
+              onGeneratingStateChange={onGeneratingStateChange}
+              onChainUpdate={handleChainUpdate}
+            />
           </div>
         </>
       )}

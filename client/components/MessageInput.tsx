@@ -1,21 +1,144 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Send, Paperclip, Smile, Mic, Image } from 'lucide-react';
+import type { GenerateResponse, GeneratedSection } from '../types/api';
+import { PromptChain } from './promptchaining';
 
 interface MessageInputProps {
-  onSendMessage: (message: string) => void;
+  onSendMessage: (message: string, response?: string) => void;
+  onNewGeneratedContent?: (sections: GeneratedSection[]) => void;
+  onGeneratingStateChange?: (generating: boolean) => void;
+  onChainUpdate?: (chain: PromptChain) => void;
 }
 
-export default function MessageInput({ onSendMessage }: MessageInputProps) {
+export default function MessageInput({ 
+  onSendMessage, 
+  onNewGeneratedContent, 
+  onGeneratingStateChange,
+  onChainUpdate
+}: MessageInputProps) {
   const [message, setMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const promptChainRef = useRef<PromptChain | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Initialize prompt chain
+  if (!promptChainRef.current) {
+    promptChainRef.current = new PromptChain(5);
+  }
+
+  const generateSectionTitles = (originalPrompt: string): string[] => {
+    return [
+      `Understanding ${originalPrompt.split(' ').slice(0, 3).join(' ')}`,
+      `Key Concepts of ${originalPrompt.split(' ').slice(0, 2).join(' ')}`,
+      `Practical Applications`,
+      `Common Questions About ${originalPrompt.split(' ').slice(0, 2).join(' ')}`,
+      `Advanced Insights`
+    ];
+  };
+
+  const buildContextFromChain = (): string => {
+    if (!promptChainRef.current) return '';
+    
+    const chainHistory = promptChainRef.current.getChainHistory();
+    if (chainHistory.length === 0) return '';
+
+    // Build simple context from last response only
+    const lastResponse = promptChainRef.current.getLastResponse();
+    if (lastResponse && lastResponse.trim()) {
+      // Take only the first sentence or 50 characters, whichever is shorter
+      const shortContext = lastResponse.split('.')[0].substring(0, 50).trim();
+      return shortContext;
+    }
+    return '';
+  };
+
+  const generateContextualPrompt = (currentPrompt: string): string => {
+    if (!promptChainRef.current) return currentPrompt;
+    
+    const chainHistory = promptChainRef.current.getChainHistory();
+
+    if (chainHistory.length === 0) {
+      return currentPrompt;
+    }
+
+    // Get the last response for simple context
+    const context = buildContextFromChain();
+
+    if (context) {
+      // Create a simple contextual prompt
+      return `Previous context: ${context}. Now explain: ${currentPrompt}`;
+    }
+
+    return currentPrompt;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (message.trim()) {
-      onSendMessage(message.trim());
-      setMessage('');
+    if (!message.trim() || loading) return;
+
+    const userPrompt = message.trim();
+    setLoading(true);
+    setMessage('');
+
+    // Notify that generation is starting
+    onGeneratingStateChange?.(true);
+
+    // First, send the user message to chatbot
+    onSendMessage(userPrompt);
+
+    try {
+      // Send original prompt and context separately to API
+      const context = buildContextFromChain();
+
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          prompt: userPrompt,  // Send original prompt, let API handle contextual building
+          context: context,
+          isChained: promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 0 : false
+        }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!res.ok) throw new Error(await res.text());
+      const data: GenerateResponse = await res.json();
+
+      // Add the prompt and response to our chain
+      if (promptChainRef.current) {
+        const chainNode = promptChainRef.current.addPrompt(userPrompt, data.text);
+
+        // Notify parent component about chain update
+        onChainUpdate?.(promptChainRef.current);
+      }
+
+      // Send the simple response back to chatbot for backward compatibility
+      onSendMessage(userPrompt, data.text);
+
+      // If we have multiple responses, create sections for GeneratedContent
+      if (data.responses && data.responses.length > 0 && onNewGeneratedContent) {
+        const sectionTitles = generateSectionTitles(userPrompt);
+
+        const generatedSections: GeneratedSection[] = data.responses.map((response, index) => ({
+          id: `section-${Date.now()}-${index}`,
+          title: sectionTitles[index] || `Response ${index + 1}`,
+          prompt: response.prompt,
+          content: response.response,
+          timestamp: new Date(),
+          chainDepth: promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0,
+          isChained: promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 1 : false
+        }));
+
+        onNewGeneratedContent(generatedSections);
+      }
+    } catch (err) {
+      console.error('API Error:', err);
+      // Send error message back to chatbot
+      onSendMessage(userPrompt, "I'm sorry, I encountered an error while processing your request. Please try again.");
+    } finally {
+      setLoading(false);
+      onGeneratingStateChange?.(false);
     }
   };
 
@@ -31,6 +154,9 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
     // Add voice recording logic here
   };
 
+  const canContinueChain = promptChainRef.current ? promptChainRef.current.canAddMore() : true;
+  const chainDepth = promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0;
+
   return (
     <form onSubmit={handleSubmit} className="relative">
       <div className="flex items-end gap-3">
@@ -40,10 +166,15 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Ask me anything about the lesson..."
+            placeholder={
+              chainDepth > 0 
+                ? "Continue the conversation with context..." 
+                : "Ask me anything about the lesson..."
+            }
             rows={1}
             className="w-full px-3 py-2 pr-16 glass backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-1 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300 text-white placeholder-white/60 resize-none text-xs leading-relaxed"
             style={{ minHeight: '32px', maxHeight: '80px' }}
+            disabled={loading}
           />
           
           {/* Input Actions */}
@@ -80,9 +211,9 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
         {/* Send Button */}
         <button
           type="submit"
-          disabled={!message.trim()}
+          disabled={!message.trim() || loading}
           className={`p-2 rounded-xl transition-all duration-300 shadow-lg ${
-            message.trim()
+            message.trim() && !loading
               ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 hover:scale-105 hover:shadow-xl'
               : 'glass backdrop-blur-sm border border-white/20 text-white/40 cursor-not-allowed'
           }`}

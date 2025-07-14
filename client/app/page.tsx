@@ -1,16 +1,34 @@
 'use client';
-
+import React from 'react';
 import { useState } from 'react';
 import Sidebar from '@/components/Sidebar';
 import GeneratedContent from '@/components/GeneratedContent';
 import Chatbot from '@/components/Chatbot';
 import { Menu, X, Sparkles, Star, Zap } from 'lucide-react';
+import type { GeneratedSection } from '@/types/api';
+import { PromptChain } from '@/components/promptchaining';
+
 
 export default function Home() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isChatbotCollapsed, setIsChatbotCollapsed] = useState(false);
+  const [generatedSections, setGeneratedSections] = useState<GeneratedSection[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [currentPromptChain, setCurrentPromptChain] = useState<PromptChain | undefined>(undefined);
+  const handleNewGeneratedContent = (sections: GeneratedSection[]) => {
+    setGeneratedSections(sections);
+  };
+
+  const handleGeneratingStateChange = (generating: boolean) => {
+    setIsGenerating(generating);
+  };
+
+  const handleChainUpdate = (chain: PromptChain) => {
+    setCurrentPromptChain(chain);
+  };
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex relative overflow-hidden">
@@ -84,7 +102,11 @@ export default function Home() {
           
           {/* Main content area - takes remaining space */}
           <div className="flex-1 h-full overflow-auto">
-            <GeneratedContent />
+          <GeneratedContent 
+            sections={generatedSections} 
+            isGenerating={isGenerating}
+            promptChain={currentPromptChain}
+          />
           </div>
           
           {/* Right spacer - matches chatbot width */}
@@ -103,6 +125,9 @@ export default function Home() {
       {/* Enhanced Desktop Chatbot - Fixed Position */}
       <div className="hidden lg:block fixed top-0 right-0 z-20">
         <Chatbot 
+        onNewGeneratedContent={handleNewGeneratedContent}
+        onGeneratingStateChange={handleGeneratingStateChange}
+        onChainUpdate={handleChainUpdate}
           isCollapsed={isChatbotCollapsed}
           setIsCollapsed={setIsChatbotCollapsed}
         />
