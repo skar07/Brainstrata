@@ -1,5 +1,5 @@
 // Service Worker for Progressive Web App
-const CACHE_NAME = 'brainstrata-v1';
+const CACHE_NAME = 'brainstrata-v2';
 const urlsToCache = [
   '/',
   '/static/js/bundle.js',

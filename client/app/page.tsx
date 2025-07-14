@@ -4,9 +4,11 @@ import { useState } from 'react';
 import Sidebar from '@/components/Sidebar';
 import GeneratedContent from '@/components/GeneratedContent';
 import Chatbot from '@/components/Chatbot';
-import { Menu, X, Sparkles, Star, Zap } from 'lucide-react';
+import { Menu, X, Sparkles, Star, Zap, LogOut, Settings } from 'lucide-react';
 import type { GeneratedSection } from '@/types/api';
 import { PromptChain } from '@/components/promptchaining';
+import { useAuth } from '@/lib/stores/authStore';
+import { useRouter } from 'next/navigation';
 
 
 export default function Home() {
@@ -17,6 +19,17 @@ export default function Home() {
   const [generatedSections, setGeneratedSections] = useState<GeneratedSection[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentPromptChain, setCurrentPromptChain] = useState<PromptChain | undefined>(undefined);
+  
+  // Auth state and logout functionality
+  const { user, logout, isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
+
+  // Redirect to login if not authenticated
+  React.useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push('/login');
+    }
+  }, [isAuthenticated, isLoading, router]);
   const handleNewGeneratedContent = (sections: GeneratedSection[]) => {
     setGeneratedSections(sections);
   };
@@ -29,6 +42,28 @@ export default function Home() {
     setCurrentPromptChain(chain);
   };
 
+  const handleLogout = () => {
+    logout();
+    router.push('/login');
+  };
+
+  // Show loading spinner while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-400 mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold text-white mb-2">Loading BrainStrata...</h2>
+          <p className="text-white/60">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render content if not authenticated (redirect will happen)
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex relative overflow-hidden">
@@ -87,18 +122,37 @@ export default function Home() {
               BrainStrata
             </h1>
           </div>
-          <button
-            onClick={() => setIsChatOpen(!isChatOpen)}
-            className="p-2 hover:bg-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm hover:scale-110 group"
-          >
-            <div className="w-4 h-4 bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 rounded-full animate-pulse shadow-lg group-hover:shadow-emerald-500/50" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsChatOpen(!isChatOpen)}
+              className="p-2 hover:bg-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm hover:scale-110 group"
+            >
+              <div className="w-4 h-4 bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 rounded-full animate-pulse shadow-lg group-hover:shadow-emerald-500/50" />
+            </button>
+            {isAuthenticated && (
+              <>
+                <button
+                  onClick={() => router.push('/settings')}
+                  className="p-2 hover:bg-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm hover:scale-110 group"
+                >
+                  <Settings className="w-4 h-4 text-white group-hover:text-purple-200 group-hover:scale-110 transition-all" />
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white rounded-lg transition-all duration-300 backdrop-blur-sm hover:scale-105 hover:shadow-lg hover:shadow-red-500/25 group"
+                >
+                  <LogOut className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                  <span className="text-sm font-medium">Logout</span>
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Generated Content - Perfectly centered between sidebars */}
         <div className="flex-1 h-full lg:flex">
           {/* Left spacer - matches sidebar width */}
-          <div className={`hidden lg:block flex-shrink-0 transition-all duration-300 ${isSidebarCollapsed ? 'w-14' : 'w-54'}`}></div>
+          <div className={`hidden lg:block flex-shrink-0 transition-all duration-300 ${isSidebarCollapsed ? 'w-12' : 'w-48'}`}></div>
           
           {/* Main content area - takes remaining space */}
           <div className="flex-1 h-full overflow-auto">
@@ -110,7 +164,7 @@ export default function Home() {
           </div>
           
           {/* Right spacer - matches chatbot width */}
-          <div className={`hidden lg:block flex-shrink-0 transition-all duration-300 ${isChatbotCollapsed ? 'w-14' : 'w-64'}`}></div>
+          <div className={`hidden lg:block flex-shrink-0 transition-all duration-300 ${isChatbotCollapsed ? 'w-12' : 'w-56'}`}></div>
         </div>
       </div>
 
@@ -132,6 +186,8 @@ export default function Home() {
           setIsCollapsed={setIsChatbotCollapsed}
         />
       </div>
+
+
 
       {/* Enhanced Mobile Chatbot */}
       {isChatOpen && (

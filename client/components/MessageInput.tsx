@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { Send, Paperclip, Smile, Mic, Image } from 'lucide-react';
-import type { GenerateResponse, GeneratedSection } from '../types/api';
+import { useState, useRef, useEffect } from 'react';
+import { Send, Paperclip, Image, Mic, X, Loader2, MessageCircle, Zap, Brain, Sparkles, Target, Calendar, Bookmark, TrendingUp, Clock, Globe, Shield, BookOpen, Lightbulb, Star, Heart, Coffee, Settings, Users, Search, Award } from 'lucide-react';
 import { PromptChain } from './promptchaining';
+import type { GeneratedSection } from '../types/api';
 
 interface MessageInputProps {
-  onSendMessage: (message: string, response?: string) => void;
+  onSendMessage: (content: string, response?: string) => void;
   onNewGeneratedContent?: (sections: GeneratedSection[]) => void;
   onGeneratingStateChange?: (generating: boolean) => void;
   onChainUpdate?: (chain: PromptChain) => void;
@@ -19,232 +19,265 @@ export default function MessageInput({
   onChainUpdate
 }: MessageInputProps) {
   const [message, setMessage] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
   const [loading, setLoading] = useState(false);
-  const promptChainRef = useRef<PromptChain | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showSmartFeatures, setShowSmartFeatures] = useState(false);
 
-  // Initialize prompt chain
-  if (!promptChainRef.current) {
-    promptChainRef.current = new PromptChain(5);
-  }
-
-  const generateSectionTitles = (originalPrompt: string): string[] => {
-    return [
-      `Understanding ${originalPrompt.split(' ').slice(0, 3).join(' ')}`,
-      `Key Concepts of ${originalPrompt.split(' ').slice(0, 2).join(' ')}`,
-      `Practical Applications`,
-      `Common Questions About ${originalPrompt.split(' ').slice(0, 2).join(' ')}`,
-      `Advanced Insights`
-    ];
+  const toggleRecording = () => {
+    setIsRecording(!isRecording);
   };
 
-  const buildContextFromChain = (): string => {
-    if (!promptChainRef.current) return '';
-    
-    const chainHistory = promptChainRef.current.getChainHistory();
-    if (chainHistory.length === 0) return '';
-
-    // Build simple context from last response only
-    const lastResponse = promptChainRef.current.getLastResponse();
-    if (lastResponse && lastResponse.trim()) {
-      // Take only the first sentence or 50 characters, whichever is shorter
-      const shortContext = lastResponse.split('.')[0].substring(0, 50).trim();
-      return shortContext;
+  const adjustTextareaHeight = () => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 60)}px`;
     }
-    return '';
-  };
-
-  const generateContextualPrompt = (currentPrompt: string): string => {
-    if (!promptChainRef.current) return currentPrompt;
-    
-    const chainHistory = promptChainRef.current.getChainHistory();
-
-    if (chainHistory.length === 0) {
-      return currentPrompt;
-    }
-
-    // Get the last response for simple context
-    const context = buildContextFromChain();
-
-    if (context) {
-      // Create a simple contextual prompt
-      return `Previous context: ${context}. Now explain: ${currentPrompt}`;
-    }
-
-    return currentPrompt;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim() || loading) return;
 
-    const userPrompt = message.trim();
     setLoading(true);
-    setMessage('');
-
-    // Notify that generation is starting
     onGeneratingStateChange?.(true);
 
-    // First, send the user message to chatbot
-    onSendMessage(userPrompt);
-
     try {
-      // Send original prompt and context separately to API
-      const context = buildContextFromChain();
-
-      const res = await fetch('/api/generate', {
-        method: 'POST',
-        body: JSON.stringify({ 
-          prompt: userPrompt,  // Send original prompt, let API handle contextual building
-          context: context,
-          isChained: promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 0 : false
-        }),
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      if (!res.ok) throw new Error(await res.text());
-      const data: GenerateResponse = await res.json();
-
-      // Add the prompt and response to our chain
-      if (promptChainRef.current) {
-        const chainNode = promptChainRef.current.addPrompt(userPrompt, data.text);
-
-        // Notify parent component about chain update
-        onChainUpdate?.(promptChainRef.current);
+      const trimmedMessage = message.trim();
+      setMessage('');
+      
+      // Reset textarea height
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
       }
 
-      // Send the simple response back to chatbot for backward compatibility
-      onSendMessage(userPrompt, data.text);
+      // Send message
+      onSendMessage(trimmedMessage);
 
-      // If we have multiple responses, create sections for GeneratedContent
-      if (data.responses && data.responses.length > 0 && onNewGeneratedContent) {
-        const sectionTitles = generateSectionTitles(userPrompt);
+      // Simulate AI response time
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-        const generatedSections: GeneratedSection[] = data.responses.map((response, index) => ({
-          id: `section-${Date.now()}-${index}`,
-          title: sectionTitles[index] || `Response ${index + 1}`,
-          prompt: response.prompt,
-          content: response.response,
-          timestamp: new Date(),
-          chainDepth: promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0,
-          isChained: promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 1 : false
-        }));
+             // Add mock generated content
+       if (onNewGeneratedContent) {
+         const mockSections: GeneratedSection[] = [
+           {
+             id: Date.now().toString(),
+             title: 'AI Response',
+             prompt: trimmedMessage,
+             content: `This is a response to your message: "${trimmedMessage}". The AI has generated relevant content based on your query.`,
+             timestamp: new Date(),
+             chainDepth: 0,
+             isChained: false
+           }
+         ];
+         onNewGeneratedContent(mockSections);
+       }
 
-        onNewGeneratedContent(generatedSections);
-      }
-    } catch (err) {
-      console.error('API Error:', err);
-      // Send error message back to chatbot
-      onSendMessage(userPrompt, "I'm sorry, I encountered an error while processing your request. Please try again.");
+    } catch (error) {
+      console.error('Error sending message:', error);
     } finally {
       setLoading(false);
       onGeneratingStateChange?.(false);
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
     }
   };
 
-  const toggleRecording = () => {
-    setIsRecording(!isRecording);
-    // Add voice recording logic here
-  };
+  const suggestions = [
+    { text: "Explain photosynthesis", icon: Lightbulb },
+    { text: "What is DNA?", icon: BookOpen },
+    { text: "How do cells work?", icon: Search },
+    { text: "Cellular respiration", icon: Zap },
+  ];
 
-  const canContinueChain = promptChainRef.current ? promptChainRef.current.canAddMore() : true;
-  const chainDepth = promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0;
+  const smartFeatures = [
+    { icon: Brain, label: "Smart Analysis", description: "AI-powered insights" },
+    { icon: Target, label: "Focus Mode", description: "Concentrated learning" },
+    { icon: Star, label: "Highlights", description: "Key points extraction" },
+    { icon: Coffee, label: "Study Break", description: "Relaxed conversation" },
+  ];
+
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [message]);
 
   return (
-    <form onSubmit={handleSubmit} className="relative">
-      <div className="flex items-end gap-3">
-        {/* Input Container */}
-        <div className="flex-1 relative">
-          <textarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder={
-              chainDepth > 0 
-                ? "Continue the conversation with context..." 
-                : "Ask me anything about the lesson..."
-            }
-            rows={1}
-            className="w-full px-3 py-2 pr-16 glass backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-1 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300 text-white placeholder-white/60 resize-none text-xs leading-relaxed"
-            style={{ minHeight: '32px', maxHeight: '80px' }}
-            disabled={loading}
-          />
-          
-          {/* Input Actions */}
-          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-0.5">
+    <div className="relative">
+      {/* Smart Features Panel */}
+      {showSmartFeatures && (
+        <div className="absolute bottom-full left-0 right-0 mb-2 bg-gradient-to-r from-white/20 via-white/10 to-white/20 backdrop-blur-sm border border-white/30 rounded-lg p-2 shadow-lg">
+          <div className="flex items-center justify-between mb-1">
+            <h4 className="text-xs font-semibold text-white/80">Smart Features</h4>
             <button
-              type="button"
-              className="p-1 text-white/60 hover:text-white hover:bg-white/10 rounded transition-all duration-200"
-              title="Attach file"
+              onClick={() => setShowSmartFeatures(false)}
+              className="text-white/60 hover:text-white transition-colors"
             >
-              <Paperclip className="w-3 h-3" />
-            </button>
-            <button
-              type="button"
-              className="p-1 text-white/60 hover:text-white hover:bg-white/10 rounded transition-all duration-200"
-              title="Add image"
-            >
-              <Image className="w-3 h-3" />
-            </button>
-            <button
-              type="button"
-              onClick={toggleRecording}
-              className={`p-1 rounded transition-all duration-200 ${
-                isRecording 
-                  ? 'text-red-400 bg-red-500/20 animate-pulse' 
-                  : 'text-white/60 hover:text-white hover:bg-white/10'
-              }`}
-              title={isRecording ? "Stop recording" : "Voice message"}
-            >
-              <Mic className="w-3 h-3" />
+              <X className="w-3 h-3" />
             </button>
           </div>
+          <div className="grid grid-cols-2 gap-1">
+            {smartFeatures.map((feature, index) => (
+              <button
+                key={index}
+                className="flex items-center gap-1.5 p-1.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-xs text-white/80 hover:text-white hover:bg-white/20 transition-all duration-300 hover:scale-105 group"
+              >
+                <feature.icon className="w-3 h-3 group-hover:scale-110 transition-transform" />
+                <div className="text-left">
+                  <p className="font-medium">{feature.label}</p>
+                  <p className="text-xs opacity-70">{feature.description}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Suggestions Panel */}
+      {showSuggestions && (
+        <div className="absolute bottom-full left-0 right-0 mb-2 bg-gradient-to-r from-white/20 via-white/10 to-white/20 backdrop-blur-sm border border-white/30 rounded-lg p-2 shadow-lg">
+          <div className="flex items-center justify-between mb-1">
+            <h4 className="text-xs font-semibold text-white/80">Suggestions</h4>
+            <button
+              onClick={() => setShowSuggestions(false)}
+              className="text-white/60 hover:text-white transition-colors"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+          <div className="space-y-1">
+            {suggestions.map((suggestion, index) => (
+              <button
+                key={index}
+                onClick={() => {
+                  setMessage(suggestion.text);
+                  setShowSuggestions(false);
+                }}
+                className="w-full flex items-center gap-2 p-1.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-xs text-white/80 hover:text-white hover:bg-white/20 transition-all duration-300 hover:scale-105 group"
+              >
+                <suggestion.icon className="w-3 h-3 group-hover:scale-110 transition-transform" />
+                <span>{suggestion.text}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Enhanced Input Form */}
+      <form onSubmit={handleSubmit} className="relative">
+        <div className="flex items-end gap-2 p-2 bg-gradient-to-r from-white/10 via-white/20 to-white/10 backdrop-blur-sm border border-white/30 rounded-xl shadow-lg">
+          {/* Main Input Container */}
+          <div className="flex-1 relative">
+            <textarea
+              ref={textareaRef}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ask me anything about the lesson..."
+              className="w-full bg-transparent text-white placeholder-white/50 text-xs resize-none border-none outline-none pr-20 py-1 min-h-[24px] max-h-[60px] leading-tight"
+              rows={1}
+              disabled={loading}
+            />
+            
+            {/* Action Buttons */}
+            <div className="absolute right-1 top-1/2 transform -translate-y-1/2 flex items-center gap-0.5">
+              <button
+                type="button"
+                className="p-1 text-white/60 hover:text-white hover:bg-white/10 rounded transition-all duration-200"
+                title="Attach file"
+              >
+                <Paperclip className="w-3 h-3" />
+              </button>
+              <button
+                type="button"
+                className="p-1 text-white/60 hover:text-white hover:bg-white/10 rounded transition-all duration-200"
+                title="Add image"
+              >
+                <Image className="w-3 h-3" />
+              </button>
+              <button
+                type="button"
+                onClick={toggleRecording}
+                className={`p-1 rounded transition-all duration-200 ${
+                  isRecording 
+                    ? 'text-red-400 bg-red-500/20 animate-pulse' 
+                    : 'text-white/60 hover:text-white hover:bg-white/10'
+                }`}
+                title={isRecording ? "Stop recording" : "Voice message"}
+              >
+                <Mic className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+
+          {/* Send Button */}
+          <button
+            type="submit"
+            disabled={!message.trim() || loading}
+            className={`p-1.5 rounded-xl transition-all duration-300 shadow-lg ${
+              message.trim() && !loading
+                ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 hover:scale-105 hover:shadow-xl'
+                : 'glass backdrop-blur-sm border border-white/20 text-white/40 cursor-not-allowed'
+            }`}
+            title="Send message"
+          >
+            <Send className="w-3 h-3" />
+          </button>
         </div>
 
-        {/* Send Button */}
-        <button
-          type="submit"
-          disabled={!message.trim() || loading}
-          className={`p-2 rounded-xl transition-all duration-300 shadow-lg ${
-            message.trim() && !loading
-              ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 hover:scale-105 hover:shadow-xl'
-              : 'glass backdrop-blur-sm border border-white/20 text-white/40 cursor-not-allowed'
-          }`}
-          title="Send message"
-        >
-          <Send className="w-3 h-3" />
-        </button>
-      </div>
+        {/* Recording Indicator */}
+        {isRecording && (
+          <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 flex items-center gap-1 px-2 py-1 bg-red-500/20 backdrop-blur-sm border border-red-500/30 rounded-lg text-xs text-red-200">
+            <div className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse"></div>
+            <span>Recording...</span>
+          </div>
+        )}
 
-      {/* Recording Indicator */}
-      {isRecording && (
-        <div className="absolute -top-8 left-0 right-0 flex items-center justify-center">
-          <div className="glass backdrop-blur-sm rounded-full px-3 py-1 border border-white/20">
-            <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse"></div>
-              <span className="text-white/80 text-xs">Recording...</span>
+        {/* Enhanced Feature Buttons */}
+        <div className="flex items-center justify-between mt-2">
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setShowSuggestions(!showSuggestions)}
+              className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-sm border border-blue-500/30 rounded-lg text-xs text-blue-200 hover:text-blue-100 hover:bg-blue-500/30 transition-all duration-300 hover:scale-105"
+              title="Show suggestions"
+            >
+              <Lightbulb className="w-3 h-3" />
+              <span>Suggestions</span>
+            </button>
+            
+            <button
+              type="button"
+              onClick={() => setShowSmartFeatures(!showSmartFeatures)}
+              className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-purple-500/20 to-pink-500/20 backdrop-blur-sm border border-purple-500/30 rounded-lg text-xs text-purple-200 hover:text-purple-100 hover:bg-purple-500/30 transition-all duration-300 hover:scale-105"
+              title="Smart features"
+            >
+              <Brain className="w-3 h-3" />
+              <span>Smart</span>
+            </button>
+          </div>
+
+          {/* Status Indicators */}
+          <div className="flex items-center gap-1">
+            {loading && (
+              <div className="flex items-center gap-1 text-xs text-white/60">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                <span>Thinking...</span>
+              </div>
+            )}
+            
+            <div className="flex items-center gap-1 text-xs text-white/50">
+              <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
+              <span>AI Ready</span>
             </div>
           </div>
         </div>
-      )}
-
-      {/* Character Counter */}
-      {message.length > 0 && (
-        <div className="absolute -top-5 right-0">
-          <span className={`text-xs ${
-            message.length > 500 ? 'text-red-400' : 'text-white/60'
-          }`}>
-            {message.length}/1000
-          </span>
-        </div>
-      )}
-    </form>
+      </form>
+    </div>
   );
 }
