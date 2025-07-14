@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import MessageInput from './MessageInput';
-import { Bot, User, ThumbsUp, ThumbsDown, Copy, RotateCcw, Link } from 'lucide-react';
+import { Bot, User, ChevronLeft, Copy, ThumbsUp, ThumbsDown, Sparkles, MessageCircle, Zap, Star, Brain, Lightbulb, Target, Coffee } from 'lucide-react';
 import type { GeneratedSection } from '../types/api';
 import { PromptChain } from './promptchaining';
 
@@ -15,27 +15,73 @@ interface Message {
 }
 
 interface ChatbotProps {
+  isCollapsed?: boolean;
+  setIsCollapsed?: (collapsed: boolean) => void;
   onNewGeneratedContent?: (sections: GeneratedSection[]) => void;
   onGeneratingStateChange?: (generating: boolean) => void;
   onChainUpdate?: (chain: PromptChain) => void;
 }
 
+// Consistent timestamp formatting function
+const formatTimestamp = (date: Date): string => {
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const hour12 = hours % 12 || 12;
+  const minuteStr = minutes.toString().padStart(2, '0');
+  return `${hour12}:${minuteStr} ${ampm}`;
+};
+
+// Client-side only timestamp component
+const Timestamp = ({ timestamp }: { timestamp: Date }) => {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    // Return a placeholder that matches the expected format during SSR
+    return <span className="text-xs opacity-70 mt-2 block">--:-- --</span>;
+  }
+
+  return (
+    <span className="text-xs opacity-70 mt-2 block">
+      {formatTimestamp(timestamp)}
+    </span>
+  );
+};
+
 export default function Chatbot({ 
-  onNewGeneratedContent, 
+  isCollapsed: externalIsCollapsed, 
+  setIsCollapsed: externalSetIsCollapsed,
+  onNewGeneratedContent,
   onGeneratingStateChange,
   onChainUpdate
-}: ChatbotProps) {
+}: ChatbotProps = {}) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      content: "Hello! I'm your AI learning assistant. I can help you understand concepts, answer questions, and provide additional explanations about the lesson. What would you like to know?",
+      content: "Hello! I'm your AI learning assistant. I can help you understand concepts, answer questions, and provide additional explanations about the lesson. What would you like to know about photosynthesis?",
       isBot: true,
       timestamp: new Date(),
     },
   ]);
 
   const [isTyping, setIsTyping] = useState(false);
+  const [internalIsCollapsed, setInternalIsCollapsed] = useState(false);
   const promptChainRef = useRef<PromptChain | null>(null);
+  
+  const isCollapsed = externalIsCollapsed ?? internalIsCollapsed;
+  const setIsCollapsed = externalSetIsCollapsed ?? setInternalIsCollapsed;
+
+  // Initialize prompt chain
+  useEffect(() => {
+    if (!promptChainRef.current) {
+      promptChainRef.current = new PromptChain(5);
+      onChainUpdate?.(promptChainRef.current);
+    }
+  }, [onChainUpdate]);
 
   const handleSendMessage = (content: string, response?: string) => {
     if (!response) {
@@ -52,21 +98,67 @@ export default function Chatbot({
 
       setMessages(prev => [...prev, userMessage]);
       setIsTyping(true);
-          } else {
-        // Second call - add the AI response
-        const isChainedResponse = promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 1 : false;
-        
+      onGeneratingStateChange?.(true);
+
+      // Add to prompt chain
+      if (promptChainRef.current) {
+        promptChainRef.current.addPrompt(content);
+        onChainUpdate?.(promptChainRef.current);
+      }
+
+      // Simulate AI response
+      setTimeout(() => {
         const botResponse: Message = {
           id: (Date.now() + 1).toString(),
-          content: response,
+          content: generateResponse(content),
           isBot: true,
           timestamp: new Date(),
-          isChained: isChainedResponse,
+          isChained: promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 1 : false,
         };
+
+        setMessages(prev => [...prev, botResponse]);
+        setIsTyping(false);
+        onGeneratingStateChange?.(false);
+
+        // Update chain with response
+        if (promptChainRef.current) {
+          // The response is already handled in the addPrompt method
+          onChainUpdate?.(promptChainRef.current);
+        }
+      }, 1500);
+    } else {
+      // Second call - add the AI response
+      const isChainedResponse = promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 1 : false;
+      
+      const botResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        content: response,
+        isBot: true,
+        timestamp: new Date(),
+        isChained: isChainedResponse,
+      };
 
       setMessages(prev => [...prev, botResponse]);
       setIsTyping(false);
+      onGeneratingStateChange?.(false);
+
+      // Update chain with response
+      if (promptChainRef.current) {
+        // The response is already handled in the addPrompt method
+        onChainUpdate?.(promptChainRef.current);
+      }
     }
+  };
+
+  const generateResponse = (input: string): string => {
+    const responses = [
+      "Great question! Let me explain that concept in detail. Photosynthesis is a fascinating process that involves multiple stages working together to convert light energy into chemical energy.",
+      "That's an excellent observation! The process you're asking about is fundamental to understanding how plants create energy. Here's what happens...",
+      "I'm glad you asked! This is one of the most important concepts in biology. Let me break it down for you step by step.",
+      "Interesting question! The answer involves understanding the molecular mechanisms that make life possible. Here's a comprehensive explanation...",
+      "Perfect timing for this question! What you're asking about connects to several other important biological processes. Let me explain...",
+    ];
+    return responses[Math.floor(Math.random() * responses.length)];
   };
 
   const handleChainUpdate = (chain: PromptChain) => {
@@ -92,183 +184,218 @@ export default function Chatbot({
     navigator.clipboard.writeText(content);
   };
 
+  const quickQuestions = [
+    { text: "What is chlorophyll?", icon: Lightbulb },
+    { text: "How does ATP work?", icon: Zap },
+    { text: "Calvin cycle steps?", icon: Target },
+    { text: "Light reactions?", icon: Star },
+  ];
+
+  const aiFeatures = [
+    { icon: Brain, label: "Smart Analysis", description: "Deep concept understanding" },
+    { icon: MessageCircle, label: "Instant Help", description: "24/7 learning support" },
+    { icon: Coffee, label: "Study Buddy", description: "Personalized assistance" },
+  ];
+
   const currentChainDepth = promptChainRef.current?.getCurrentDepth() || 0;
 
   return (
-    <div className="w-96 bg-white border-l border-gray-200 flex flex-col h-full">
-      {/* Header */}
-      <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-500 to-purple-600">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-              <Bot className="w-4 h-4 text-white" />
-            </div>
+    <div 
+      className={`bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 flex flex-col transition-all duration-300 ${isCollapsed ? 'w-14' : 'w-64'} h-screen max-h-screen relative shadow-2xl border-l border-white/20`}
+      onClick={(e) => e.stopPropagation()}
+      style={{ overflow: 'visible' }}
+    >
+      {/* Enhanced Background Effects */}
+      <div className="absolute inset-0 overflow-hidden rounded-l-2xl">
+        <div className="absolute top-1/4 left-1/2 transform -translate-x-1/2 w-60 h-60 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-1/4 left-1/2 transform -translate-x-1/2 w-40 h-40 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-full blur-2xl animate-pulse animation-delay-2000"></div>
+        
+        {/* Floating Elements */}
+        <div className="absolute top-20 right-6 text-white/10 animate-float">
+          <Sparkles className="w-4 h-4" />
+        </div>
+        <div className="absolute bottom-40 left-6 text-white/10 animate-float animation-delay-2000">
+          <Star className="w-3 h-3" />
+        </div>
+      </div>
+
+      {/* Enhanced Arrow Toggle Button */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsCollapsed(!isCollapsed);
+        }}
+        className={`fixed top-1/2 transform -translate-y-1/2 z-50 w-7 h-10 bg-gradient-to-r from-purple-600 via-pink-600 to-violet-700 shadow-2xl hover:shadow-purple-500/70 transition-all duration-300 flex items-center justify-center group border-2 border-white/60 hover:scale-110 animate-pulse rounded-l-xl ${
+          isCollapsed 
+            ? 'right-8' 
+            : 'right-64'
+        }`}
+        title={isCollapsed ? "Expand AI Assistant" : "Collapse AI Assistant"}
+        style={{ zIndex: 9999 }}
+      >
+        <ChevronLeft className={`w-3 h-3 text-white drop-shadow-2xl transition-all duration-300 ${isCollapsed ? 'rotate-180' : 'rotate-0'}`} />
+        <div className="absolute inset-0 bg-white/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-l-xl"></div>
+        {/* Extra visibility indicator */}
+        <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full animate-ping"></div>
+      </button>
+
+      {/* Enhanced Header - Fixed */}
+      <div className={`flex-shrink-0 p-4 border-b border-white/20 bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-violet-500/20 backdrop-blur-sm relative z-10 ${isCollapsed ? 'px-3' : ''}`}>
+        <div className={`flex items-center gap-2 ${isCollapsed ? 'justify-center' : ''}`}>
+          <div className="w-8 h-8 bg-gradient-to-br from-purple-500 via-pink-500 to-violet-600 rounded-lg flex items-center justify-center shadow-lg animate-pulse">
+            <Bot className="w-4 h-4 text-white" />
+          </div>
+          {!isCollapsed && (
             <div>
-              <h3 className="font-semibold text-white">AI Assistant</h3>
-              <p className="text-xs text-blue-100">Always ready to help</p>
+              <h2 className="text-sm font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-violet-300 bg-clip-text text-transparent">
+                AI Assistant
+              </h2>
+              <p className="text-xs text-white/60 font-medium">Always here to help</p>
             </div>
+          )}
+        </div>
+      </div>
+
+      {/* AI Features Preview - Fixed */}
+      {!isCollapsed && (
+        <div className="flex-shrink-0 p-3 border-b border-white/10 bg-gradient-to-r from-blue-500/10 to-purple-500/10 relative z-10">
+          <div className="grid grid-cols-3 gap-1.5">
+            {aiFeatures.map((feature, index) => (
+              <div key={index} className="text-center p-2 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 hover:bg-white/20 transition-all duration-300 group">
+                <feature.icon className="w-3 h-3 text-white/70 mx-auto mb-1 group-hover:text-white group-hover:scale-110 transition-all duration-300" />
+                <p className="text-xs text-white/60 font-medium">{feature.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!isCollapsed && (
+        <>
+          {/* Enhanced Messages - Scrollable Container */}
+          <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-4 relative z-10 scrollbar-thin scrollbar-thumb-purple-500 scrollbar-track-white/10">
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex gap-3 ${message.isBot ? 'justify-start' : 'justify-end'} animate-fadeInUp`}
+              >
+                {message.isBot && (
+                  <div 
+                    className="w-7 h-7 bg-gradient-to-br from-purple-500 via-pink-500 to-violet-600 rounded-lg flex items-center justify-center flex-shrink-0 cursor-default shadow-lg animate-pulse"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Bot className="w-3 h-3 text-white" />
+                  </div>
+                )}
+                
+                <div
+                  className={`max-w-[80%] p-3 rounded-xl relative group transition-all duration-300 ${
+                    message.isBot
+                      ? 'bg-gradient-to-br from-white/20 via-white/10 to-white/20 backdrop-blur-sm text-white border border-white/30 shadow-lg hover:shadow-xl'
+                      : 'bg-gradient-to-br from-purple-500 via-pink-500 to-violet-600 text-white shadow-lg hover:shadow-xl hover:scale-[1.02]'
+                  }`}
+                >
+                  <p className="text-xs leading-relaxed">{message.content}</p>
+                  <Timestamp timestamp={message.timestamp} />
+
+                  {message.isBot && (
+                    <div className="absolute -right-1.5 top-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <div className="flex items-center gap-0.5 bg-gradient-to-r from-white/20 to-white/10 backdrop-blur-sm rounded-lg p-0.5 shadow-lg border border-white/30">
+                        <button
+                          onClick={() => copyMessage(message.content)}
+                          className="p-0.5 hover:bg-white/30 rounded text-white/70 hover:text-white transition-all duration-300 hover:scale-110"
+                          title="Copy message"
+                        >
+                          <Copy className="w-2.5 h-2.5" />
+                        </button>
+                        <button 
+                          className="p-0.5 hover:bg-white/30 rounded text-white/70 hover:text-white transition-all duration-300 hover:scale-110"
+                          title="Like message"
+                        >
+                          <ThumbsUp className="w-2.5 h-2.5" />
+                        </button>
+                        <button 
+                          className="p-0.5 hover:bg-white/30 rounded text-white/70 hover:text-white transition-all duration-300 hover:scale-110"
+                          title="Dislike message"
+                        >
+                          <ThumbsDown className="w-2.5 h-2.5" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {!message.isBot && (
+                  <div className="w-7 h-7 bg-gradient-to-br from-blue-500 via-cyan-500 to-teal-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg">
+                    <User className="w-3 h-3 text-white" />
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {/* Enhanced Typing Indicator */}
+            {isTyping && (
+              <div className="flex gap-2 justify-start animate-fadeInUp">
+                <div className="w-7 h-7 bg-gradient-to-br from-purple-500 via-pink-500 to-violet-600 rounded-lg flex items-center justify-center shadow-lg animate-pulse">
+                  <Bot className="w-3 h-3 text-white" />
+                </div>
+                <div className="bg-gradient-to-br from-white/20 via-white/10 to-white/20 backdrop-blur-sm p-3 rounded-xl border border-white/30 shadow-lg">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 bg-white/70 rounded-full animate-bounce"></div>
+                    <div className="w-1.5 h-1.5 bg-white/70 rounded-full animate-bounce animation-delay-200"></div>
+                    <div className="w-1.5 h-1.5 bg-white/70 rounded-full animate-bounce animation-delay-400"></div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Enhanced Quick Questions - Fixed */}
+          <div className="flex-shrink-0 p-3 border-t border-white/20 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-violet-500/10 backdrop-blur-sm relative z-10">
+            <p className="text-xs text-white/70 mb-2 font-semibold">Quick Questions</p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {quickQuestions.map((question, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleSendMessage(question.text)}
+                  className="flex items-center gap-1.5 px-2 py-1.5 bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-sm border border-white/20 rounded-lg text-xs text-white/80 hover:text-white hover:bg-white/20 transition-all duration-300 hover:scale-105 group"
+                >
+                  <question.icon className="w-2.5 h-2.5 group-hover:scale-110 transition-transform" />
+                  <span className="truncate">{question.text}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Enhanced Message Input - Fixed */}
+          <div className="flex-shrink-0 p-3 border-t border-white/20 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 backdrop-blur-sm relative z-10">
+            <MessageInput 
+              onSendMessage={handleSendMessage}
+              onNewGeneratedContent={onNewGeneratedContent}
+              onGeneratingStateChange={onGeneratingStateChange}
+              onChainUpdate={handleChainUpdate}
+            />
+          </div>
+        </>
+      )}
+
+      {/* Collapsed State Content */}
+      {isCollapsed && (
+        <div className="flex flex-col items-center justify-center flex-1 p-3 relative z-10">
+          <div className="w-10 h-10 bg-gradient-to-br from-purple-500 via-pink-500 to-violet-600 rounded-lg flex items-center justify-center shadow-lg animate-pulse mb-3">
+            <MessageCircle className="w-5 h-5 text-white" />
+          </div>
+          <div className="text-center">
+            <p className="text-white/60 text-xs font-medium mb-1.5">AI Chat</p>
+            <div className="w-1.5 h-1.5 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full animate-pulse"></div>
           </div>
           
-          {/* Chain Status & Reset */}
-          {currentChainDepth > 0 && (
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1 px-2 py-1 bg-white/20 rounded-full">
-                <Link className="w-3 h-3 text-white" />
-                <span className="text-xs text-white">{currentChainDepth}/5</span>
-              </div>
-              <button
-                onClick={resetChain}
-                className="p-1 hover:bg-white/20 rounded transition-colors"
-                title="Reset conversation context"
-              >
-                <RotateCcw className="w-3 h-3 text-white" />
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`flex gap-3 ${
-              message.isBot ? 'justify-start' : 'justify-end'
-            }`}
-          >
-            {message.isBot && (
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                message.isChained 
-                  ? 'bg-gradient-to-br from-purple-500 to-blue-600'
-                  : 'bg-gradient-to-br from-blue-500 to-purple-600'
-              }`}>
-                <Bot className="w-4 h-4 text-white" />
-              </div>
-            )}
-
-            <div
-              className={`max-w-[70%] p-3 rounded-lg relative group ${
-                message.isBot
-                  ? message.isChained
-                    ? 'bg-purple-50 text-gray-900 border border-purple-200'
-                    : 'bg-gray-100 text-gray-900'
-                  : message.isChained
-                    ? 'bg-purple-500 text-white'
-                    : 'bg-blue-500 text-white'
-              }`}
-            >
-              <div className="flex items-start gap-2">
-                {message.isChained && (
-                  <Link className="w-3 h-3 mt-0.5 flex-shrink-0 opacity-70" />
-                )}
-                <div className="flex-1">
-                  <p className="text-sm leading-relaxed">{message.content}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs opacity-70">
-                      {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                    {message.isChained && (
-                      <span className="text-xs opacity-70 bg-black/10 px-1 rounded">
-                        Contextual
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {message.isBot && (
-                <div className="absolute -right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-1 shadow-sm">
-                    <button
-                      onClick={() => copyMessage(message.content)}
-                      className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-gray-700"
-                    >
-                      <Copy className="w-3 h-3" />
-                    </button>
-                    <button className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-gray-700">
-                      <ThumbsUp className="w-3 h-3" />
-                    </button>
-                    <button className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-gray-700">
-                      <ThumbsDown className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {!message.isBot && (
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                message.isChained ? 'bg-purple-400' : 'bg-gray-400'
-              }`}>
-                <User className="w-4 h-4 text-white" />
-              </div>
-            )}
+          {/* Notification badge */}
+          <div className="absolute top-3 right-3 w-5 h-5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center shadow-lg">
+            <span className="text-white text-xs font-bold">{messages.length}</span>
           </div>
-        ))}
-
-        {isTyping && (
-          <div className="flex gap-3 justify-start">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-              currentChainDepth > 0 
-                ? 'bg-gradient-to-br from-purple-500 to-blue-600'
-                : 'bg-gradient-to-br from-blue-500 to-purple-600'
-            }`}>
-              <Bot className="w-4 h-4 text-white" />
-            </div>
-            <div className={`p-3 rounded-lg ${
-              currentChainDepth > 0 
-                ? 'bg-purple-50 border border-purple-200'
-                : 'bg-gray-100'
-            }`}>
-              <div className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Quick Actions */}
-      <div className="p-4 border-t border-gray-200 bg-gray-50">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-xs text-gray-600">Quick questions:</p>
-          {currentChainDepth > 0 && (
-            <span className="text-xs text-purple-600 bg-purple-100 px-2 py-1 rounded-full">
-              Chain Mode Active
-            </span>
-          )}
         </div>
-        <div className="flex flex-wrap gap-2">
-          {[
-            currentChainDepth > 0 ? "Continue this topic" : "Tell me about heart",
-            currentChainDepth > 0 ? "Give me examples" : "Explain quantum physics",
-            currentChainDepth > 0 ? "Go deeper" : "How does AI work?",
-          ].map((question, index) => (
-            <button
-              key={index}
-              onClick={() => handleSendMessage(question)}
-              className={`px-3 py-1 border rounded-full text-xs transition-colors ${
-                currentChainDepth > 0
-                  ? 'bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100'
-                  : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              {question}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Input */}
-      <MessageInput 
-        onSendMessage={handleSendMessage}
-        onNewGeneratedContent={onNewGeneratedContent}
-        onGeneratingStateChange={onGeneratingStateChange}
-        onChainUpdate={handleChainUpdate}
-      />
+      )}
     </div>
   );
 }
