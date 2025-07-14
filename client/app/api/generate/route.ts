@@ -116,68 +116,142 @@ function buildContextualPrompt(prompt: string, context?: string, isChained: bool
 }
 
 export async function POST(req: NextRequest) {
-  const { prompt, context, isChained, generateImage: shouldGenerateImage } = (await req.json()) as GenerateRequest;
+  const { prompt, context, isChained, generateImage: shouldGenerateImage, streamMode = false } = (await req.json()) as GenerateRequest & { streamMode?: boolean };
   if (!prompt?.trim()) {
     return NextResponse.json({ error: 'Empty prompt' }, { status: 400 });
   }
 
   try {
-    // Comment out T5 pipeline usage
-    // const t5 = await getT5Pipeline();
-    
     // Generate prompt variations based on whether this is a chained conversation
     const promptVariations = generatePromptVariations(prompt, isChained, context);
     const responses: PromptResponse[] = [];
     
-    // Get responses for each variation using OpenAI instead of T5
-    const promises = promptVariations.map(async (variation) => {
-      const contextualVariation = buildContextualPrompt(variation, context, isChained);
-      const response = await generateOpenAIPrompt(contextualVariation, context, isChained);
+    if (streamMode) {
+      // Stream mode: Process each variation individually and return as they complete
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        async start(controller) {
+          try {
+            // Send initial response for chat compatibility
+            const contextualSimplePrompt = buildContextualPrompt(prompt, context, isChained);
+            const simpleResponse = await generateOpenAIPrompt(contextualSimplePrompt, context, isChained);
+            
+            // Send the simple response first
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+              type: 'simple',
+              text: simpleResponse,
+              responses: [],
+              imageUrl: ''
+            })}\n\n`));
+
+            // Process each variation individually
+            for (let i = 0; i < promptVariations.length; i++) {
+              const variation = promptVariations[i];
+              const contextualVariation = buildContextualPrompt(variation, context, isChained);
+              const response = await generateOpenAIPrompt(contextualVariation, context, isChained);
+              
+              const promptResponse: PromptResponse = {
+                prompt: variation,
+                response: response
+              };
+              
+              responses.push(promptResponse);
+              
+              // Send each response as it completes
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                type: 'variation',
+                index: i,
+                response: promptResponse,
+                allResponses: responses
+              })}\n\n`));
+            }
+
+            // Generate image if requested (after all text responses)
+            let imageUrl = '';
+            if (shouldGenerateImage) {
+              console.log('Generating image for prompt:', prompt);
+              imageUrl = await generateImage(prompt, context, isChained);
+              
+              // Send image response
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                type: 'image',
+                imageUrl: imageUrl
+              })}\n\n`));
+            }
+
+            // Send final complete response
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+              type: 'complete',
+              text: simpleResponse,
+              responses: responses,
+              imageUrl: imageUrl
+            })}\n\n`));
+            
+            controller.close();
+          } catch (error) {
+            controller.error(error);
+          }
+        }
+      });
+
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
+      });
+    } else {
+      // Legacy mode: Wait for all responses to complete
+      const promises = promptVariations.map(async (variation) => {
+        const contextualVariation = buildContextualPrompt(variation, context, isChained);
+        const response = await generateOpenAIPrompt(contextualVariation, context, isChained);
+        
+        return {
+          prompt: variation,
+          response: response
+        };
+      });
+
+      // Wait for all responses to complete
+      const parallelResponses = await Promise.all(promises);
+      responses.push(...parallelResponses);
+
+      // Get a simple response for chat compatibility using OpenAI
+      const contextualSimplePrompt = buildContextualPrompt(prompt, context, isChained);
       
-      return {
-        prompt: variation,
-        response: response
+      console.log('Sending to OpenAI model:', {
+        originalPrompt: prompt,
+        context: context,
+        finalPrompt: contextualSimplePrompt,
+        isChained,
+        generateImage: shouldGenerateImage
+      });
+      
+      const simpleResponse = await generateOpenAIPrompt(contextualSimplePrompt, context, isChained);
+
+      // Generate image if requested
+      let imageUrl = '';
+      if (shouldGenerateImage) {
+        console.log('Generating image for prompt:', prompt);
+        imageUrl = await generateImage(prompt, context, isChained);
+      }
+
+      const body: GenerateResponse = { 
+        text: simpleResponse,
+        responses: responses,
+        imageUrl: imageUrl
       };
-    });
-
-    // Wait for all responses to complete
-    const parallelResponses = await Promise.all(promises);
-    responses.push(...parallelResponses);
-
-    // Get a simple response for chat compatibility using OpenAI
-    const contextualSimplePrompt = buildContextualPrompt(prompt, context, isChained);
-    
-    console.log('Sending to OpenAI model:', {
-      originalPrompt: prompt,
-      context: context,
-      finalPrompt: contextualSimplePrompt,
-      isChained,
-      generateImage: shouldGenerateImage
-    });
-    
-    const simpleResponse = await generateOpenAIPrompt(contextualSimplePrompt, context, isChained);
-
-    // Generate image if requested
-    let imageUrl = '';
-    if (shouldGenerateImage) {
-      console.log('Generating image for prompt:', prompt);
-      imageUrl = await generateImage(prompt, context, isChained);
+      
+      console.log('OpenAI model response:', {
+        generatedText: simpleResponse,
+        isChained,
+        hasContext: !!context,
+        hasImage: !!imageUrl
+      });
+      
+      return NextResponse.json(body);
     }
-
-    const body: GenerateResponse = { 
-      text: simpleResponse,
-      responses: responses,
-      imageUrl: imageUrl
-    };
-    
-    console.log('OpenAI model response:', {
-      generatedText: simpleResponse,
-      isChained,
-      hasContext: !!context,
-      hasImage: !!imageUrl
-    });
-    
-    return NextResponse.json(body);
   } catch (err) {
     console.error('OpenAI API Error:', err);
     return NextResponse.json(

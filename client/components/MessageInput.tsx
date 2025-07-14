@@ -78,19 +78,111 @@ export default function MessageInput({
       const context = buildContextFromChain();
       const isChained = promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 0 : false;
 
+      // Use streaming mode for better UX
       const res = await fetch('/api/generate', {
         method: 'POST',
         body: JSON.stringify({ 
           prompt: userPrompt,
           context: context,
           isChained: isChained,
-          generateImage: generateImage
+          generateImage: generateImage,
+          streamMode: true // Enable streaming
         }),
         headers: { 'Content-Type': 'application/json' },
       });
 
       if (!res.ok) throw new Error(await res.text());
-      const data: GenerateResponse = await res.json();
+
+      // Handle streaming response
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      let accumulatedResponses: any[] = [];
+      let simpleResponse = '';
+      let imageUrl = '';
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                
+                switch (data.type) {
+                  case 'simple':
+                    simpleResponse = data.text;
+                    // Send the simple response to chatbot immediately
+                    onSendMessage(userPrompt, data.text);
+                    break;
+                    
+                  case 'variation':
+                    accumulatedResponses = data.allResponses;
+                    // Update GeneratedContent with new responses as they come in
+                    if (onNewGeneratedContent) {
+                      const sectionTitles = generateSectionTitles(userPrompt);
+                      const generatedSections: GeneratedSection[] = accumulatedResponses.map((response, index) => ({
+                        id: `section-${Date.now()}-${index}`,
+                        title: sectionTitles[index] || `Response ${index + 1}`,
+                        prompt: response.prompt,
+                        content: response.response,
+                        timestamp: new Date(),
+                        chainDepth: promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0,
+                        isChained: promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 1 : false,
+                        imageUrl: '' // Will be updated when image is ready
+                      }));
+                      onNewGeneratedContent(generatedSections);
+                    }
+                    break;
+                    
+                  case 'image':
+                    imageUrl = data.imageUrl;
+                    // Update the first section with the image URL
+                    if (onNewGeneratedContent && accumulatedResponses.length > 0) {
+                      const sectionTitles = generateSectionTitles(userPrompt);
+                      const generatedSections: GeneratedSection[] = accumulatedResponses.map((response, index) => ({
+                        id: `section-${Date.now()}-${index}`,
+                        title: sectionTitles[index] || `Response ${index + 1}`,
+                        prompt: response.prompt,
+                        content: response.response,
+                        timestamp: new Date(),
+                        chainDepth: promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0,
+                        isChained: promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 1 : false,
+                        imageUrl: index === 0 ? imageUrl : '' // Add image URL to the first section
+                      }));
+                      onNewGeneratedContent(generatedSections);
+                    }
+                    break;
+                    
+                  case 'complete':
+                    // Final update with complete data
+                    if (onNewGeneratedContent) {
+                      const sectionTitles = generateSectionTitles(userPrompt);
+                      const generatedSections: GeneratedSection[] = data.responses.map((response: any, index: number) => ({
+                        id: `section-${Date.now()}-${index}`,
+                        title: sectionTitles[index] || `Response ${index + 1}`,
+                        prompt: response.prompt,
+                        content: response.response,
+                        timestamp: new Date(),
+                        chainDepth: promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0,
+                        isChained: promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 1 : false,
+                        imageUrl: index === 0 ? data.imageUrl : '' // Add image URL to the first section
+                      }));
+                      onNewGeneratedContent(generatedSections);
+                    }
+                    break;
+                }
+              } catch (parseError) {
+                console.error('Error parsing streaming data:', parseError);
+              }
+            }
+          }
+        }
+      }
 
       // Update the chain with the response
       if (promptChainRef.current) {
@@ -98,33 +190,13 @@ export default function MessageInput({
         const chainHistory = promptChainRef.current.getChainHistory();
         const lastNode = chainHistory[chainHistory.length - 1];
         if (lastNode) {
-          lastNode.response = data.text;
+          lastNode.response = simpleResponse;
         }
         
         // Notify parent component about chain update
         onChainUpdate?.(promptChainRef.current);
       }
 
-      // Send the response back to chatbot
-      onSendMessage(userPrompt, data.text);
-
-      // If we have multiple responses, create sections for GeneratedContent
-      if (data.responses && data.responses.length > 0 && onNewGeneratedContent) {
-        const sectionTitles = generateSectionTitles(userPrompt);
-
-        const generatedSections: GeneratedSection[] = data.responses.map((response, index) => ({
-          id: `section-${Date.now()}-${index}`,
-          title: sectionTitles[index] || `Response ${index + 1}`,
-          prompt: response.prompt,
-          content: response.response,
-          timestamp: new Date(),
-          chainDepth: promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0,
-          isChained: promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 1 : false,
-          imageUrl: data.imageUrl // Add image URL to the first section if available
-        }));
-
-        onNewGeneratedContent(generatedSections);
-      }
     } catch (err) {
       console.error('API Error:', err);
       // Send error message back to chatbot

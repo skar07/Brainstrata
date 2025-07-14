@@ -3,6 +3,7 @@ export interface GenerateRequest {
   context?: string;
   isChained?: boolean;
   generateImage?: boolean; // New field to request image generation
+  streamMode?: boolean; // New field to enable streaming responses
 }
 
 export interface PromptResponse {

@@ -100,6 +100,28 @@
   }
 }
 
+@keyframes streamIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes streamPulse {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+
 @keyframes rotate {
   from {
     transform: rotate(0deg);
@@ -156,6 +178,14 @@
 
 .animate-imageFadeIn {
   animation: imageFadeIn 0.8s ease-out;
+}
+
+.animate-streamIn {
+  animation: streamIn 0.6s ease-out;
+}
+
+.animate-streamPulse {
+  animation: streamPulse 2s ease-in-out infinite;
 }
 
 .animate-shine {
