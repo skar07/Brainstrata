@@ -54,6 +54,40 @@ async function generateOpenAIPrompt(prompt: string, context?: string, isChained:
   return response.choices[0].message.content || '';
 }
 
+async function generateImage(prompt: string, context?: string, isChained: boolean = false): Promise<string> {
+  try {
+    // Create an enhanced prompt for image generation
+    let imagePrompt = prompt;
+    
+    if (isChained && context) {
+      // For chained conversations, create a more contextual image prompt
+      imagePrompt = `Create a visual representation of: ${prompt}. Context: ${context}. Style: Educational, clear, colorful, suitable for learning materials.`;
+    } else {
+      // For new conversations, enhance the prompt for better image generation
+      imagePrompt = `Create a visual representation of: ${prompt}. Style: Educational, clear, colorful, suitable for learning materials, scientific illustration.`;
+    }
+
+    console.log('Generating image with prompt:', imagePrompt);
+
+    const response = await client.images.generate({
+      model: "dall-e-3",
+      prompt: imagePrompt,
+      n: 1,
+      size: "1024x1024",
+      quality: "standard",
+      style: "natural",
+    });
+
+    const imageUrl = response.data?.[0]?.url;
+    console.log('Generated image URL:', imageUrl);
+    
+    return imageUrl || '';
+  } catch (error) {
+    console.error('Error generating image:', error);
+    return '';
+  }
+}
+
 function generatePromptVariations(originalPrompt: string, isChained: boolean = false, context?: string): string[] {
   if (isChained && context) {
     // Very simple contextual variations - just add the context as background
@@ -82,7 +116,7 @@ function buildContextualPrompt(prompt: string, context?: string, isChained: bool
 }
 
 export async function POST(req: NextRequest) {
-  const { prompt, context, isChained } = (await req.json()) as GenerateRequest;
+  const { prompt, context, isChained, generateImage: shouldGenerateImage } = (await req.json()) as GenerateRequest;
   if (!prompt?.trim()) {
     return NextResponse.json({ error: 'Empty prompt' }, { status: 400 });
   }
@@ -117,20 +151,30 @@ export async function POST(req: NextRequest) {
       originalPrompt: prompt,
       context: context,
       finalPrompt: contextualSimplePrompt,
-      isChained
+      isChained,
+      generateImage: shouldGenerateImage
     });
     
     const simpleResponse = await generateOpenAIPrompt(contextualSimplePrompt, context, isChained);
 
+    // Generate image if requested
+    let imageUrl = '';
+    if (shouldGenerateImage) {
+      console.log('Generating image for prompt:', prompt);
+      imageUrl = await generateImage(prompt, context, isChained);
+    }
+
     const body: GenerateResponse = { 
       text: simpleResponse,
-      responses: responses
+      responses: responses,
+      imageUrl: imageUrl
     };
     
     console.log('OpenAI model response:', {
       generatedText: simpleResponse,
       isChained,
-      hasContext: !!context
+      hasContext: !!context,
+      hasImage: !!imageUrl
     });
     
     return NextResponse.json(body);

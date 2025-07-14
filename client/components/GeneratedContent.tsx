@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import React from 'react';
 import VisualBlock from './VisualBlock';
-import { ChevronRight, BookOpen, Lightbulb, CheckCircle, FileText, Brain, Search, Microscope, Loader2, Link, TrendingUp, MessageSquare } from 'lucide-react';
+import { ChevronRight, BookOpen, Lightbulb, CheckCircle, FileText, Brain, Search, Microscope, Loader2, Link, TrendingUp, MessageSquare, Image } from 'lucide-react';
 import type { GeneratedSection } from '../types/api';
 import { PromptChain } from './promptchaining';
 
@@ -183,7 +183,9 @@ export default function GeneratedContent({
       maxDepth: maxChainDepth,
       averageDepth: chainHistory.length > 0 
         ? Math.round(chainHistory.reduce((sum, node) => sum + (node.depth || 0), 0) / chainHistory.length)
-        : 0
+        : 0,
+      binaryTreeDepth: promptChain ? promptChain.getBinaryTreeDepth() : 0,
+      conversationPath: promptChain ? promptChain.getConversationPath().length : 0
     };
   };
 
@@ -346,6 +348,28 @@ export default function GeneratedContent({
               )}
             </div>
 
+            {/* Binary Tree Structure Info */}
+            <div className="bg-white rounded-lg p-4 border border-purple-100 mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Brain className="w-4 h-4 text-purple-500" />
+                <span className="text-sm font-medium text-purple-700">Binary Tree Structure</span>
+              </div>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-600">Tree Depth:</span>
+                  <span className="ml-2 font-medium text-purple-700">
+                    {getChainStats().binaryTreeDepth}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Conversation Path:</span>
+                  <span className="ml-2 font-medium text-purple-700">
+                    {getChainStats().conversationPath} nodes
+                  </span>
+                </div>
+              </div>
+            </div>
+
             {/* Chain History Details */}
             {showChainHistory && (
               <div className="space-y-3 pt-4 border-t border-purple-200">
@@ -476,6 +500,37 @@ export default function GeneratedContent({
                   </div>
                 </div>
                 <p className="text-gray-700 leading-relaxed mb-6">{section.content}</p>
+                
+                {/* Display generated image if available */}
+                {isDynamicContent && (section as GeneratedSection).imageUrl && (
+                  <div className="mb-6 animate-imageFadeIn">
+                    <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-4 border border-purple-200">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Image className="w-4 h-4 text-purple-500" />
+                        <span className="text-sm font-medium text-purple-700">AI Generated Image</span>
+                      </div>
+                      <div className="relative group">
+                        <img 
+                          src={(section as GeneratedSection).imageUrl} 
+                          alt={`AI generated image for: ${section.title}`}
+                          className="w-full h-auto rounded-lg shadow-lg border border-purple-200 hover:shadow-xl transition-all duration-300"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-300 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100">
+                          <button
+                            onClick={() => window.open((section as GeneratedSection).imageUrl, '_blank')}
+                            className="px-3 py-1 bg-white/90 text-gray-800 rounded-lg text-sm font-medium hover:bg-white transition-all duration-200"
+                          >
+                            View Full Size
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {!isDynamicContent && index === currentSection && !isGenerating && (
                   <button

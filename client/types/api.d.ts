@@ -2,6 +2,7 @@ export interface GenerateRequest {
   prompt: string;
   context?: string;
   isChained?: boolean;
+  generateImage?: boolean; // New field to request image generation
 }
 
 export interface PromptResponse {
@@ -12,6 +13,7 @@ export interface PromptResponse {
 export interface GenerateResponse {
   text: string; // Keep for backward compatibility
   responses?: PromptResponse[]; // New field for multiple responses
+  imageUrl?: string; // New field for generated image URL
 }
 
 export interface GeneratedSection {
@@ -22,4 +24,5 @@ export interface GeneratedSection {
   timestamp: Date;
   chainDepth?: number;
   isChained?: boolean;
+  imageUrl?: string; // New field for section-specific images
 }
