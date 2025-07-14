@@ -1,18 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { pipeline } from '@xenova/transformers';
+// import { pipeline } from '@xenova/transformers';
 import type { GenerateRequest, GenerateResponse, PromptResponse } from '../../../types/api';
+import { OpenAI } from 'openai';
 
-let t5Pipeline: any = null;
+// Comment out T5 pipeline
+// let t5Pipeline: any = null;
 
-async function getT5Pipeline() {
-  if (!t5Pipeline) {
-    t5Pipeline = await pipeline(
-      'text2text-generation',
-      'Xenova/LaMini-Flan-T5-248M',   
-      { quantized: true }         
-    );
+// async function getT5Pipeline() {
+//   if (!t5Pipeline) {
+//     t5Pipeline = await pipeline(
+//       'text2text-generation',
+//       'Xenova/LaMini-Flan-T5-248M',   
+//       { quantized: true }         
+//     );
+//   }
+//   return t5Pipeline;
+// }
+
+const client = new OpenAI();
+
+// Remove the test response creation
+// const response = client.responses.create({
+//   model: "gpt-4.1",
+//   input: "Write a one-sentence bedtime story about a unicorn."
+// });
+
+// console.log(response);
+
+async function generateOpenAIPrompt(prompt: string, context?: string, isChained: boolean = false): Promise<string> {
+  const messages = [];
+  
+  if (isChained && context) {
+    messages.push({ 
+      role: 'system' as const, 
+      content: `You are a helpful AI assistant. Previous context: ${context}. Continue the conversation naturally.` 
+    });
+  } else {
+    messages.push({ 
+      role: 'system' as const, 
+      content: 'You are a helpful AI assistant that explains concepts clearly and provides useful information.' 
+    });
   }
-  return t5Pipeline;
+  
+  messages.push({ role: 'user' as const, content: prompt });
+  
+  const response = await client.chat.completions.create({
+    model: 'gpt-4.1',
+    messages: messages,
+    max_tokens: isChained ? 200 : 150,
+    temperature: isChained ? 0.8 : 0.7,
+  });
+  
+  return response.choices[0].message.content || '';
 }
 
 function generatePromptVariations(originalPrompt: string, isChained: boolean = false, context?: string): string[] {
@@ -49,23 +88,21 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const t5 = await getT5Pipeline();
+    // Comment out T5 pipeline usage
+    // const t5 = await getT5Pipeline();
     
     // Generate prompt variations based on whether this is a chained conversation
     const promptVariations = generatePromptVariations(prompt, isChained, context);
     const responses: PromptResponse[] = [];
     
-    // Get responses for each variation in parallel for better performance
+    // Get responses for each variation using OpenAI instead of T5
     const promises = promptVariations.map(async (variation) => {
       const contextualVariation = buildContextualPrompt(variation, context, isChained);
-      const out = await t5(contextualVariation, {
-        max_new_tokens: isChained ? 140 : 120, // Slightly longer responses for chained prompts
-        temperature: isChained ? 0.8 : 0.7, // Slightly more creative for chained responses
-      });
+      const response = await generateOpenAIPrompt(contextualVariation, context, isChained);
       
       return {
         prompt: variation,
-        response: out[0].generated_text
+        response: response
       };
     });
 
@@ -73,34 +110,32 @@ export async function POST(req: NextRequest) {
     const parallelResponses = await Promise.all(promises);
     responses.push(...parallelResponses);
 
-    // Get a simple response for chat compatibility
+    // Get a simple response for chat compatibility using OpenAI
     const contextualSimplePrompt = buildContextualPrompt(prompt, context, isChained);
     
-    console.log('Sending to T5 model:', {
+    console.log('Sending to OpenAI model:', {
       originalPrompt: prompt,
       context: context,
       finalPrompt: contextualSimplePrompt,
       isChained
     });
     
-    const simpleOut = await t5(contextualSimplePrompt, {
-      max_new_tokens: isChained ? 100 : 80,
-      temperature: isChained ? 0.8 : 0.7,
-    });
+    const simpleResponse = await generateOpenAIPrompt(contextualSimplePrompt, context, isChained);
 
     const body: GenerateResponse = { 
-      text: simpleOut[0].generated_text,
+      text: simpleResponse,
       responses: responses
     };
     
-    console.log('T5 model response:', {
-      generatedText: simpleOut[0].generated_text,
+    console.log('OpenAI model response:', {
+      generatedText: simpleResponse,
       isChained,
       hasContext: !!context
     });
     
     return NextResponse.json(body);
   } catch (err) {
+    console.error('OpenAI API Error:', err);
     return NextResponse.json(
       { error: (err as Error).message },
       { status: 500 },

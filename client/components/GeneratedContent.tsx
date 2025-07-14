@@ -312,7 +312,7 @@ export default function GeneratedContent({
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">Prompt Chain Active</h3>
                   <p className="text-sm text-gray-600">
-                    {chainHistory.length}/5 context prompts • Chain depth: {maxChainDepth}
+                    {chainHistory.length}/50 context prompts • Chain depth: {maxChainDepth}
                   </p>
                 </div>
               </div>
@@ -336,7 +336,7 @@ export default function GeneratedContent({
                   )}
                 </React.Fragment>
               ))}
-              {chainHistory.length < 5 && (
+              {chainHistory.length < 50 && (
                 <>
                   <ChevronRight className="w-4 h-4 text-gray-300" />
                   <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-gray-400 text-xs">

@@ -25,7 +25,7 @@ export default function MessageInput({
 
   // Initialize prompt chain
   if (!promptChainRef.current) {
-    promptChainRef.current = new PromptChain(5);
+    promptChainRef.current = new PromptChain(50); // Increased from 5 to 50 for unlimited prompts
   }
 
   const generateSectionTitles = (originalPrompt: string): string[] => {

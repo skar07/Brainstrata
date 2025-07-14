@@ -78,7 +78,7 @@ export default function Chatbot({
   // Initialize prompt chain
   useEffect(() => {
     if (!promptChainRef.current) {
-      promptChainRef.current = new PromptChain(5);
+      promptChainRef.current = new PromptChain(50); // Increased from 5 to 50 for unlimited prompts
       onChainUpdate?.(promptChainRef.current);
     }
   }, [onChainUpdate]);
@@ -167,7 +167,7 @@ export default function Chatbot({
   };
 
   const resetChain = () => {
-    promptChainRef.current = new PromptChain(5);
+    promptChainRef.current = new PromptChain(50); // Increased from 5 to 50
     onChainUpdate?.(promptChainRef.current);
     
     // Add a system message about chain reset
