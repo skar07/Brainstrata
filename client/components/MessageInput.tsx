@@ -10,13 +10,15 @@ interface MessageInputProps {
   onNewGeneratedContent?: (sections: GeneratedSection[]) => void;
   onGeneratingStateChange?: (generating: boolean) => void;
   onChainUpdate?: (chain: PromptChain) => void;
+  onPromptUpdate?: (prompt: string) => void;
 }
 
 export default function MessageInput({ 
   onSendMessage, 
   onNewGeneratedContent, 
   onGeneratingStateChange,
-  onChainUpdate
+  onChainUpdate,
+  onPromptUpdate
 }: MessageInputProps) {
   const [message, setMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
@@ -89,6 +91,9 @@ export default function MessageInput({
     onSendMessage(userPrompt);
 
     try {
+      // Update the current prompt for quiz generation
+      onPromptUpdate?.(userPrompt);
+      
       // Send original prompt and context separately to API
       const context = buildContextFromChain();
 

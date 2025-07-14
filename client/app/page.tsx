@@ -3,10 +3,14 @@ import React from 'react';
 import { useState } from 'react';
 import Sidebar from '@/components/Sidebar';
 import GeneratedContent from '@/components/GeneratedContent';
+import QuizGenerator from '@/components/QuizGenerator';
 import Chatbot from '@/components/Chatbot';
+import CourseList from '@/components/CourseList';
+import LessonView from '@/components/LessonView';
 import { Menu, X, Sparkles, Star, Zap } from 'lucide-react';
-import type { GeneratedSection } from '@/types/api';
+import type { GeneratedSection, Course, Lesson } from '@/types/api';
 import { PromptChain } from '@/components/promptchaining';
+import { mockCourses, getCourseById, getLessonById } from '@/data/courses';
 
 
 export default function Home() {
@@ -17,6 +21,13 @@ export default function Home() {
   const [generatedSections, setGeneratedSections] = useState<GeneratedSection[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentPromptChain, setCurrentPromptChain] = useState<PromptChain | undefined>(undefined);
+  const [currentPrompt, setCurrentPrompt] = useState<string>('');
+  
+  // Navigation state management
+  const [currentSection, setCurrentSection] = useState<string>('dashboard');
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
+  
   const handleNewGeneratedContent = (sections: GeneratedSection[]) => {
     setGeneratedSections(sections);
   };
@@ -27,6 +38,127 @@ export default function Home() {
 
   const handleChainUpdate = (chain: PromptChain) => {
     setCurrentPromptChain(chain);
+  };
+
+  const handlePromptUpdate = (prompt: string) => {
+    setCurrentPrompt(prompt);
+  };
+
+  // Navigation handlers
+  const handleNavigate = (section: string) => {
+    setCurrentSection(section);
+    if (section !== 'lesson') {
+      setSelectedCourse(null);
+      setSelectedLesson(null);
+    }
+  };
+
+  const handleCourseSelect = (courseId: string) => {
+    const course = getCourseById(courseId);
+    if (course) {
+      setSelectedCourse(course);
+      // Navigate to first lesson
+      const firstLesson = course.lessons.find(lesson => lesson.order === 1);
+      if (firstLesson) {
+        setSelectedLesson(firstLesson);
+        setCurrentSection('lesson');
+      }
+    }
+  };
+
+  const handleLessonSelect = (courseId: string, lessonId: string) => {
+    const course = getCourseById(courseId);
+    const lesson = getLessonById(courseId, lessonId);
+    if (course && lesson) {
+      setSelectedCourse(course);
+      setSelectedLesson(lesson);
+      setCurrentSection('lesson');
+    }
+  };
+
+  const handleNextLesson = () => {
+    if (!selectedCourse || !selectedLesson) return;
+    
+    const currentIndex = selectedCourse.lessons.findIndex(l => l.id === selectedLesson.id);
+    const nextLesson = selectedCourse.lessons[currentIndex + 1];
+    if (nextLesson) {
+      setSelectedLesson(nextLesson);
+    }
+  };
+
+  const handlePreviousLesson = () => {
+    if (!selectedCourse || !selectedLesson) return;
+    
+    const currentIndex = selectedCourse.lessons.findIndex(l => l.id === selectedLesson.id);
+    const previousLesson = selectedCourse.lessons[currentIndex - 1];
+    if (previousLesson) {
+      setSelectedLesson(previousLesson);
+    }
+  };
+
+  const handleLessonComplete = (lessonId: string) => {
+    // Update lesson completion status
+    // This would typically make an API call
+    console.log('Lesson completed:', lessonId);
+  };
+
+  const handleBackToCatalog = () => {
+    setCurrentSection('catalog');
+    setSelectedLesson(null);
+  };
+
+  // Function to get combined content from all sections
+  const getCombinedContent = () => {
+    return generatedSections.map(section => section.content).join('\n\n');
+  };
+
+  // Render main content based on current section
+  const renderMainContent = () => {
+    switch (currentSection) {
+      case 'catalog':
+        return (
+          <CourseList 
+            courses={mockCourses}
+            onCourseSelect={handleCourseSelect}
+          />
+        );
+      case 'lesson':
+        if (!selectedCourse || !selectedLesson) {
+          return <div>Loading...</div>;
+        }
+        const currentLessonIndex = selectedCourse.lessons.findIndex(l => l.id === selectedLesson.id);
+        return (
+          <LessonView
+            course={selectedCourse}
+            lesson={selectedLesson}
+            onNextLesson={handleNextLesson}
+            onPreviousLesson={handlePreviousLesson}
+            onBackToCatalog={handleBackToCatalog}
+            hasNext={currentLessonIndex < selectedCourse.lessons.length - 1}
+            hasPrevious={currentLessonIndex > 0}
+            onLessonComplete={handleLessonComplete}
+          />
+        );
+      default:
+        return (
+          <>
+            <GeneratedContent 
+              sections={generatedSections} 
+              isGenerating={isGenerating}
+              promptChain={currentPromptChain}
+            />
+            
+            {/* Quiz Generator - shown below generated content */}
+            {generatedSections.length > 0 && (
+              <QuizGenerator 
+                prompt={currentPrompt || generatedSections[0]?.title || "Generated Content"}
+                generatedContent={getCombinedContent()}
+                isVisible={!isGenerating}
+              />
+            )}
+          </>
+        );
+    }
   };
 
 
@@ -64,7 +196,12 @@ export default function Home() {
                 <X className="w-4 h-4 text-gray-700" />
               </button>
             </div>
-            <Sidebar />
+            <Sidebar 
+              onNavigate={handleNavigate}
+              currentSection={currentSection}
+              selectedCourse={selectedCourse}
+              onLessonSelect={handleLessonSelect}
+            />
           </div>
         </div>
       )}
@@ -102,11 +239,7 @@ export default function Home() {
           
           {/* Main content area - takes remaining space */}
           <div className="flex-1 h-full overflow-auto">
-          <GeneratedContent 
-            sections={generatedSections} 
-            isGenerating={isGenerating}
-            promptChain={currentPromptChain}
-          />
+            {renderMainContent()}
           </div>
           
           {/* Right spacer - matches chatbot width */}
@@ -119,6 +252,10 @@ export default function Home() {
         <Sidebar 
           isCollapsed={isSidebarCollapsed}
           setIsCollapsed={setIsSidebarCollapsed}
+          onNavigate={handleNavigate}
+          currentSection={currentSection}
+          selectedCourse={selectedCourse}
+          onLessonSelect={handleLessonSelect}
         />
       </div>
 
@@ -128,6 +265,7 @@ export default function Home() {
         onNewGeneratedContent={handleNewGeneratedContent}
         onGeneratingStateChange={handleGeneratingStateChange}
         onChainUpdate={handleChainUpdate}
+        onPromptUpdate={handlePromptUpdate}
           isCollapsed={isChatbotCollapsed}
           setIsCollapsed={setIsChatbotCollapsed}
         />
@@ -148,7 +286,12 @@ export default function Home() {
             </button>
           </div>
           <div className="h-full">
-            <Chatbot />
+            <Chatbot 
+              onNewGeneratedContent={handleNewGeneratedContent}
+              onGeneratingStateChange={handleGeneratingStateChange}
+              onChainUpdate={handleChainUpdate}
+              onPromptUpdate={handlePromptUpdate}
+            />
           </div>
         </div>
       )}

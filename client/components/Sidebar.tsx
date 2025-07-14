@@ -17,36 +17,59 @@ import {
   Sparkles,
   Star,
   Zap,
-  Target
+  Target,
+  Play,
+  Clock,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
+import { mockCourses } from '@/data/courses';
+import type { Course } from '@/types/api';
 
 interface SidebarProps {
   isCollapsed?: boolean;
   setIsCollapsed?: (collapsed: boolean) => void;
+  onNavigate?: (section: string) => void;
+  currentSection?: string;
+  selectedCourse?: Course | null;
+  onLessonSelect?: (courseId: string, lessonId: string) => void;
 }
 
-export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollapsed: externalSetIsCollapsed }: SidebarProps = {}) {
+export default function Sidebar({ 
+  isCollapsed: externalIsCollapsed, 
+  setIsCollapsed: externalSetIsCollapsed,
+  onNavigate = () => {},
+  currentSection = 'dashboard',
+  selectedCourse,
+  onLessonSelect
+}: SidebarProps = {}) {
   const [internalIsCollapsed, setInternalIsCollapsed] = useState(false);
   
   const isCollapsed = externalIsCollapsed ?? internalIsCollapsed;
   const setIsCollapsed = externalSetIsCollapsed ?? setInternalIsCollapsed;
   const [hoveredItem, setHoveredItem] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [expandedCourse, setExpandedCourse] = useState<string | null>(null);
+
+  // Get featured courses (first 3 with some progress or newest)
+  const featuredCourses = mockCourses.slice(0, 3);
 
   const menuItems = [
     {
       icon: Home,
       label: 'Dashboard',
-      active: true,
+      active: currentSection === 'dashboard',
       color: 'from-blue-500 to-cyan-500',
       notifications: 0,
+      onClick: () => onNavigate('dashboard')
     },
     {
       icon: BookOpen,
-      label: 'Courses',
-      active: false,
+      label: 'Catalog',
+      active: currentSection === 'catalog',
       color: 'from-purple-500 to-pink-500',
       notifications: 3,
+      onClick: () => onNavigate('catalog')
     },
     {
       icon: Users,
@@ -54,6 +77,7 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
       active: false,
       color: 'from-green-500 to-emerald-500',
       notifications: 12,
+      onClick: () => onNavigate('community')
     },
     {
       icon: Award,
@@ -61,6 +85,7 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
       active: false,
       color: 'from-amber-500 to-orange-500',
       notifications: 1,
+      onClick: () => onNavigate('achievements')
     },
     {
       icon: TrendingUp,
@@ -68,6 +93,7 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
       active: false,
       color: 'from-indigo-500 to-purple-500',
       notifications: 0,
+      onClick: () => onNavigate('progress')
     },
     {
       icon: Calendar,
@@ -75,6 +101,7 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
       active: false,
       color: 'from-pink-500 to-rose-500',
       notifications: 2,
+      onClick: () => onNavigate('schedule')
     },
     {
       icon: MessageCircle,
@@ -82,6 +109,7 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
       active: false,
       color: 'from-teal-500 to-cyan-500',
       notifications: 5,
+      onClick: () => onNavigate('messages')
     },
     {
       icon: Settings,
@@ -89,6 +117,7 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
       active: false,
       color: 'from-slate-500 to-gray-600',
       notifications: 0,
+      onClick: () => onNavigate('settings')
     },
   ];
 
@@ -168,6 +197,137 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
         </div>
       )}
 
+      {/* Quick Catalog Preview */}
+      {!isCollapsed && featuredCourses.length > 0 && (
+        <div className="px-3 mb-4 relative z-10">
+          <h3 className="text-xs font-bold text-white/60 mb-3 uppercase tracking-wider">
+            {selectedCourse ? 'Current Course' : 'Featured Courses'}
+          </h3>
+          
+          {/* Show selected course with lessons dropdown */}
+          {selectedCourse ? (
+            <div className="space-y-2">
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-purple-500/50 shadow-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className={`w-6 h-6 bg-gradient-to-br ${selectedCourse.color} rounded-md flex items-center justify-center flex-shrink-0`}>
+                    <BookOpen className="w-3 h-3 text-white" />
+                  </div>
+                  <h4 className="text-white text-xs font-medium truncate flex-1">
+                    {selectedCourse.title}
+                  </h4>
+                  <button
+                    onClick={() => setExpandedCourse(expandedCourse === selectedCourse.id ? null : selectedCourse.id)}
+                    className="p-1 hover:bg-white/20 rounded transition-colors"
+                  >
+                    {expandedCourse === selectedCourse.id ? (
+                      <ChevronUp className="w-3 h-3 text-white/70" />
+                    ) : (
+                      <ChevronDown className="w-3 h-3 text-white/70" />
+                    )}
+                  </button>
+                </div>
+                
+                {/* Course progress */}
+                <div className="flex items-center justify-between text-xs text-white/50 mb-2">
+                  <div className="flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    <span>{selectedCourse.duration}</span>
+                  </div>
+                  {selectedCourse.progress && selectedCourse.progress > 0 && (
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                      <span>{selectedCourse.progress}%</span>
+                    </div>
+                  )}
+                </div>
+                
+                {selectedCourse.progress && selectedCourse.progress > 0 && (
+                  <div className="mb-2">
+                    <div className="w-full bg-white/20 rounded-full h-1">
+                      <div 
+                        className={`bg-gradient-to-r ${selectedCourse.color} h-1 rounded-full transition-all duration-500`}
+                        style={{ width: `${selectedCourse.progress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+                
+                {/* Lessons dropdown */}
+                {expandedCourse === selectedCourse.id && (
+                  <div className="mt-3 space-y-1 max-h-40 overflow-y-auto scrollbar-thin">
+                    {selectedCourse.lessons.map((lesson) => (
+                      <button
+                        key={lesson.id}
+                        onClick={() => onLessonSelect?.(selectedCourse.id, lesson.id)}
+                        className="w-full text-left p-2 rounded bg-white/5 hover:bg-white/10 transition-colors group"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
+                            lesson.completed 
+                              ? 'bg-green-500' 
+                              : 'bg-white/20 border border-white/30'
+                          }`}>
+                            {lesson.completed && <span className="text-white text-xs">✓</span>}
+                          </div>
+                          <span className="text-xs text-white/80 group-hover:text-white truncate">
+                            {lesson.order}. {lesson.title}
+                          </span>
+                        </div>
+                        <div className="text-xs text-white/50 mt-1 ml-6">
+                          {lesson.duration}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              <button 
+                onClick={() => onNavigate?.('catalog')}
+                className="w-full py-2 text-xs text-white/60 hover:text-white transition-colors border border-white/20 rounded-lg hover:border-white/40 hover:bg-white/5"
+              >
+                Back to Catalog
+              </button>
+            </div>
+          ) : (
+            /* Default featured courses view - more compact */
+            <div className="space-y-2">
+              {featuredCourses.slice(0, 2).map((course) => (
+                <div
+                  key={course.id}
+                  onClick={() => onNavigate?.('catalog')}
+                  className="bg-white/5 backdrop-blur-sm rounded-lg p-2 border border-white/10 hover:border-white/20 transition-all duration-300 cursor-pointer hover:bg-white/10 group"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className={`w-5 h-5 bg-gradient-to-br ${course.color} rounded flex items-center justify-center flex-shrink-0`}>
+                      <BookOpen className="w-2.5 h-2.5 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-white text-xs font-medium truncate group-hover:text-purple-200 transition-colors">
+                        {course.title}
+                      </h4>
+                      <div className="flex items-center gap-2 text-xs text-white/50">
+                        <span>{course.duration}</span>
+                        {course.progress && course.progress > 0 && (
+                          <span className="text-green-400">{course.progress}%</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              
+              <button 
+                onClick={() => onNavigate?.('catalog')}
+                className="w-full py-2 text-xs text-white/60 hover:text-white transition-colors border border-white/20 rounded-lg hover:border-white/40 hover:bg-white/5"
+              >
+                View All Courses
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Navigation Menu */}
       <div className="flex-1 overflow-y-auto p-3 relative z-10">
         <div className="mb-4">
@@ -178,6 +338,7 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
             {menuItems.map((item, index) => (
               <button
                 key={index}
+                onClick={item.onClick}
                 onMouseEnter={() => setHoveredItem(index)}
                 onMouseLeave={() => setHoveredItem(null)}
                 className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-300 group relative overflow-hidden ${
