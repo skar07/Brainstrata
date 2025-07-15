@@ -78,7 +78,7 @@ export default function Chatbot({
   // Initialize prompt chain
   useEffect(() => {
     if (!promptChainRef.current) {
-      promptChainRef.current = new PromptChain(5);
+      promptChainRef.current = new PromptChain(50); // Increased from 5 to 50 for unlimited prompts
       onChainUpdate?.(promptChainRef.current);
     }
   }, [onChainUpdate]);
@@ -100,34 +100,13 @@ export default function Chatbot({
       setIsTyping(true);
       onGeneratingStateChange?.(true);
 
-      // Add to prompt chain
+      // Add to prompt chain (without response for now)
       if (promptChainRef.current) {
         promptChainRef.current.addPrompt(content);
         onChainUpdate?.(promptChainRef.current);
       }
-
-      // Simulate AI response
-      setTimeout(() => {
-        const botResponse: Message = {
-          id: (Date.now() + 1).toString(),
-          content: generateResponse(content),
-          isBot: true,
-          timestamp: new Date(),
-          isChained: promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 1 : false,
-        };
-
-        setMessages(prev => [...prev, botResponse]);
-        setIsTyping(false);
-        onGeneratingStateChange?.(false);
-
-        // Update chain with response
-        if (promptChainRef.current) {
-          // The response is already handled in the addPrompt method
-          onChainUpdate?.(promptChainRef.current);
-        }
-      }, 1500);
     } else {
-      // Second call - add the AI response
+      // Second call - add the AI response and update the chain
       const isChainedResponse = promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 1 : false;
       
       const botResponse: Message = {
@@ -142,9 +121,13 @@ export default function Chatbot({
       setIsTyping(false);
       onGeneratingStateChange?.(false);
 
-      // Update chain with response
+      // Update the last node in the chain with the response
       if (promptChainRef.current) {
-        // The response is already handled in the addPrompt method
+        const chainHistory = promptChainRef.current.getChainHistory();
+        const lastNode = chainHistory[chainHistory.length - 1];
+        if (lastNode) {
+          lastNode.response = response;
+        }
         onChainUpdate?.(promptChainRef.current);
       }
     }
@@ -167,7 +150,7 @@ export default function Chatbot({
   };
 
   const resetChain = () => {
-    promptChainRef.current = new PromptChain(5);
+    promptChainRef.current = new PromptChain(50); // Increased from 5 to 50
     onChainUpdate?.(promptChainRef.current);
     
     // Add a system message about chain reset
@@ -352,7 +335,18 @@ export default function Chatbot({
 
           {/* Enhanced Quick Questions - Fixed */}
           <div className="flex-shrink-0 p-3 border-t border-white/20 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-violet-500/10 backdrop-blur-sm relative z-10">
-            <p className="text-xs text-white/70 mb-2 font-semibold">Quick Questions</p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-white/70 font-semibold">Quick Questions</p>
+              {currentChainDepth > 0 && (
+                <button
+                  onClick={resetChain}
+                  className="text-xs text-white/60 hover:text-white/80 transition-colors"
+                  title="Reset conversation context"
+                >
+                  🔄 Reset
+                </button>
+              )}
+            </div>
             <div className="grid grid-cols-2 gap-1.5">
               {quickQuestions.map((question, index) => (
                 <button
