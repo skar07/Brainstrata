@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { mockCourses } from '@/data/courses';
 import type { Course } from '@/types/api';
+import CompactCatalog from './CompactCatalog';
 
 interface SidebarProps {
   isCollapsed?: boolean;
@@ -197,136 +198,88 @@ export default function Sidebar({
         </div>
       )}
 
-      {/* Quick Catalog Preview */}
-      {!isCollapsed && featuredCourses.length > 0 && (
+      {/* Current Course Roadmap */}
+      {!isCollapsed && selectedCourse && currentSection === 'lesson' && (
         <div className="px-3 mb-4 relative z-10">
-          <h3 className="text-xs font-bold text-white/60 mb-3 uppercase tracking-wider">
-            {selectedCourse ? 'Current Course' : 'Featured Courses'}
-          </h3>
-          
-          {/* Show selected course with lessons dropdown */}
-          {selectedCourse ? (
-            <div className="space-y-2">
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-purple-500/50 shadow-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className={`w-6 h-6 bg-gradient-to-br ${selectedCourse.color} rounded-md flex items-center justify-center flex-shrink-0`}>
-                    <BookOpen className="w-3 h-3 text-white" />
-                  </div>
-                  <h4 className="text-white text-xs font-medium truncate flex-1">
-                    {selectedCourse.title}
-                  </h4>
-                  <button
-                    onClick={() => setExpandedCourse(expandedCourse === selectedCourse.id ? null : selectedCourse.id)}
-                    className="p-1 hover:bg-white/20 rounded transition-colors"
-                  >
-                    {expandedCourse === selectedCourse.id ? (
-                      <ChevronUp className="w-3 h-3 text-white/70" />
-                    ) : (
-                      <ChevronDown className="w-3 h-3 text-white/70" />
-                    )}
-                  </button>
-                </div>
-                
-                {/* Course progress */}
-                <div className="flex items-center justify-between text-xs text-white/50 mb-2">
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    <span>{selectedCourse.duration}</span>
-                  </div>
-                  {selectedCourse.progress && selectedCourse.progress > 0 && (
-                    <div className="flex items-center gap-1">
-                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                      <span>{selectedCourse.progress}%</span>
-                    </div>
-                  )}
-                </div>
-                
-                {selectedCourse.progress && selectedCourse.progress > 0 && (
-                  <div className="mb-2">
-                    <div className="w-full bg-white/20 rounded-full h-1">
-                      <div 
-                        className={`bg-gradient-to-r ${selectedCourse.color} h-1 rounded-full transition-all duration-500`}
-                        style={{ width: `${selectedCourse.progress}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-                
-                {/* Lessons dropdown */}
-                {expandedCourse === selectedCourse.id && (
-                  <div className="mt-3 space-y-1 max-h-40 overflow-y-auto scrollbar-thin">
-                    {selectedCourse.lessons.map((lesson) => (
-                      <button
-                        key={lesson.id}
-                        onClick={() => onLessonSelect?.(selectedCourse.id, lesson.id)}
-                        className="w-full text-left p-2 rounded bg-white/5 hover:bg-white/10 transition-colors group"
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
-                            lesson.completed 
-                              ? 'bg-green-500' 
-                              : 'bg-white/20 border border-white/30'
-                          }`}>
-                            {lesson.completed && <span className="text-white text-xs">✓</span>}
-                          </div>
-                          <span className="text-xs text-white/80 group-hover:text-white truncate">
-                            {lesson.order}. {lesson.title}
-                          </span>
-                        </div>
-                        <div className="text-xs text-white/50 mt-1 ml-6">
-                          {lesson.duration}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
+          <div className="space-y-2">
+            {/* Course Header */}
+            <div className="flex items-center gap-2 mb-3">
+              <div className={`w-6 h-6 bg-gradient-to-br ${selectedCourse.color} rounded-lg flex items-center justify-center shadow-lg`}>
+                <BookOpen className="w-3 h-3 text-white" />
               </div>
-              
-              <button 
+              <div className="flex-1 min-w-0">
+                <h3 className="text-xs font-semibold text-white truncate">
+                  {selectedCourse.title}
+                </h3>
+                <p className="text-xs text-white/60">{selectedCourse.category}</p>
+              </div>
+              <button
                 onClick={() => onNavigate?.('catalog')}
-                className="w-full py-2 text-xs text-white/60 hover:text-white transition-colors border border-white/20 rounded-lg hover:border-white/40 hover:bg-white/5"
+                className="text-xs text-purple-400 hover:text-purple-300 transition-colors"
               >
-                Back to Catalog
+                All
               </button>
             </div>
-          ) : (
-            /* Default featured courses view - more compact */
-            <div className="space-y-2">
-              {featuredCourses.slice(0, 2).map((course) => (
-                <div
-                  key={course.id}
-                  onClick={() => onNavigate?.('catalog')}
-                  className="bg-white/5 backdrop-blur-sm rounded-lg p-2 border border-white/10 hover:border-white/20 transition-all duration-300 cursor-pointer hover:bg-white/10 group"
+
+            {/* Progress */}
+            <div className="mb-3">
+              <div className="flex items-center justify-between text-xs text-white/70 mb-1">
+                <span>Progress</span>
+                <span>{selectedCourse.lessons.filter(l => l.completed).length}/{selectedCourse.lessons.length}</span>
+              </div>
+              <div className="w-full bg-white/20 rounded-full h-1">
+                <div 
+                  className={`bg-gradient-to-r ${selectedCourse.color} h-1 rounded-full transition-all duration-500`}
+                  style={{ width: `${selectedCourse.progress || 0}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Lessons Roadmap */}
+            <div className="space-y-1 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+              {selectedCourse.lessons.map((lesson, index) => (
+                <button
+                  key={lesson.id}
+                  onClick={() => onLessonSelect?.(selectedCourse.id, lesson.id)}
+                  className="w-full text-left p-2 rounded bg-white/5 hover:bg-white/10 transition-colors group"
                 >
                   <div className="flex items-center gap-2">
-                    <div className={`w-5 h-5 bg-gradient-to-br ${course.color} rounded flex items-center justify-center flex-shrink-0`}>
-                      <BookOpen className="w-2.5 h-2.5 text-white" />
+                    <div className={`w-3 h-3 rounded-full flex items-center justify-center ${
+                      lesson.completed 
+                        ? 'bg-green-500' 
+                        : 'bg-white/20 border border-white/30'
+                    }`}>
+                      {lesson.completed && <span className="text-white text-xs">✓</span>}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-white text-xs font-medium truncate group-hover:text-purple-200 transition-colors">
-                        {course.title}
-                      </h4>
-                      <div className="flex items-center gap-2 text-xs text-white/50">
-                        <span>{course.duration}</span>
-                        {course.progress && course.progress > 0 && (
-                          <span className="text-green-400">{course.progress}%</span>
-                        )}
-                      </div>
-                    </div>
+                    <span className="text-xs text-white/80 group-hover:text-white truncate">
+                      {lesson.order}. {lesson.title}
+                    </span>
                   </div>
-                </div>
+                </button>
               ))}
-              
-              <button 
-                onClick={() => onNavigate?.('catalog')}
-                className="w-full py-2 text-xs text-white/60 hover:text-white transition-colors border border-white/20 rounded-lg hover:border-white/40 hover:bg-white/5"
-              >
-                View All Courses
-              </button>
             </div>
-          )}
+          </div>
         </div>
       )}
+
+      {/* Catalog Section */}
+      {!isCollapsed && (!selectedCourse || currentSection !== 'lesson') && (
+        <div className="px-3 mb-4 relative z-10">
+          <CompactCatalog 
+            courses={mockCourses}
+            onCourseSelect={(courseId) => {
+              const course = mockCourses.find(c => c.id === courseId);
+              if (course && course.lessons.length > 0) {
+                onLessonSelect?.(courseId, course.lessons[0].id);
+              }
+            }}
+            onViewAllClick={() => onNavigate?.('catalog')}
+            selectedCourse={selectedCourse}
+            onLessonSelect={onLessonSelect}
+          />
+        </div>
+      )}
+
 
       {/* Navigation Menu */}
       <div className="flex-1 overflow-y-auto p-3 relative z-10">

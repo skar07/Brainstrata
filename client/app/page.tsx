@@ -6,6 +6,7 @@ import GeneratedContent from '@/components/GeneratedContent';
 import QuizGenerator from '@/components/QuizGenerator';
 import Chatbot from '@/components/Chatbot';
 import CourseList from '@/components/CourseList';
+import MainCatalogView from '@/components/MainCatalogView';
 import LessonView from '@/components/LessonView';
 import { Menu, X, Sparkles, Star, Zap } from 'lucide-react';
 import type { GeneratedSection, Course, Lesson } from '@/types/api';
@@ -117,7 +118,7 @@ export default function Home() {
     switch (currentSection) {
       case 'catalog':
         return (
-          <CourseList 
+          <MainCatalogView 
             courses={mockCourses}
             onCourseSelect={handleCourseSelect}
           />
