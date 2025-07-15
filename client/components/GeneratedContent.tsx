@@ -287,7 +287,7 @@ export default function GeneratedContent({
   };
 
   return (
-    <div className="h-full w-full bg-gray-50 overflow-y-auto">
+    <div className="h-fit w-full bg-gray-50 overflow-y-auto">
       <div className="max-w-4xl mx-auto p-8 pb-16">
         {/* Header */}
         <div className="mb-8">
@@ -464,37 +464,6 @@ export default function GeneratedContent({
               </div>
             </div>
           ))}
-        </div>
-
-        {/* Enhanced Visual Blocks - More Responsive */}
-        <div className="space-y-4 md:space-y-6 mb-10 md:mb-12">
-          <div className="text-center mb-4 md:mb-5">
-            <h3 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mb-2 md:mb-3">Interactive Visualizations</h3>
-            <p className="text-sm md:text-base text-gray-600 max-w-full md:max-w-xl mx-auto">
-              Explore complex concepts through beautifully designed interactive elements
-            </p>
-          </div>
-          
-          <div className="animate-fadeInUp">
-            <VisualBlock 
-              type="diagram" 
-              title="Photosynthesis Process" 
-              interactive={true}
-            />
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <VisualBlock 
-                type="grid" 
-                title="Chloroplast Structure" 
-                interactive={true}
-              />
-              <VisualBlock 
-                type="flowchart" 
-                title="Energy Conversion Steps" 
-                interactive={true}
-              />
-            </div>
-          </div>
         </div>
 
         {/* Key Concepts - Only show for default content */}
