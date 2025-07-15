@@ -5,16 +5,18 @@ import React from 'react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
-import { CheckCircle, XCircle, HelpCircle, Brain, Loader2, RefreshCw, Trophy, Target, Clock, BookOpen, Zap } from 'lucide-react';
+import { CheckCircle, XCircle, HelpCircle, Brain, Loader2, RefreshCw, Trophy, Target, Clock, BookOpen, Zap, ArrowRight, GripVertical } from 'lucide-react';
 
 interface QuizQuestion {
   id: string;
-  type: 'multiple-choice' | 'true-false' | 'short-answer' | 'fill-in-blank';
+  type: 'multiple-choice' | 'true-false' | 'short-answer' | 'fill-in-blank' | 'drag-drop' | 'matching';
   question: string;
   options?: string[];
   correctAnswer: string;
   explanation: string;
   difficulty?: 'easy' | 'medium' | 'hard';
+  dragItems?: { id: string; text: string; correctOrder: number }[];
+  matchPairs?: { left: string; right: string }[];
 }
 
 interface QuizResponse {
@@ -32,6 +34,8 @@ interface UserAnswer {
   questionId: string;
   answer: string;
   isCorrect: boolean;
+  dragOrder?: string[];
+  matchedPairs?: { left: string; right: string }[];
 }
 
 export default function QuizGenerator({ 
@@ -49,6 +53,35 @@ export default function QuizGenerator({
   const [error, setError] = useState<string | null>(null);
   const [quizStarted, setQuizStarted] = useState(false);
   const [timeSpent, setTimeSpent] = useState(0);
+  const [draggedItems, setDraggedItems] = useState<string[]>([]);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  
+  // Fill-in-blank specific state
+  const [fillInBlanks, setFillInBlanks] = useState<{ [key: string]: string }>({});
+  const [availableOptions, setAvailableOptions] = useState<string[]>([]);
+  const [draggedOption, setDraggedOption] = useState<string | null>(null);
+
+  // Auto-generate quiz when content is available
+  useEffect(() => {
+    if (isVisible && generatedContent && prompt && !questions.length && !isLoading) {
+      generateQuiz();
+    }
+  }, [isVisible, generatedContent, prompt]);
+
+  // Initialize fill-in-blank options when question changes
+  useEffect(() => {
+    if (questions.length > 0 && questions[currentQuestionIndex]?.type === 'fill-in-blank') {
+      const currentQ = questions[currentQuestionIndex];
+      console.log('Fill-in-blank question loaded:', currentQ);
+      if (currentQ.options) {
+        console.log('Setting available options:', currentQ.options);
+        setAvailableOptions([...currentQ.options]);
+        setFillInBlanks({});
+      } else {
+        console.warn('No options found for fill-in-blank question:', currentQ);
+      }
+    }
+  }, [currentQuestionIndex, questions]);
 
   // Timer for tracking time spent on quiz
   useEffect(() => {
@@ -97,6 +130,14 @@ export default function QuizGenerator({
       const data: QuizResponse = await response.json();
       setQuestions(data.questions);
       setQuizStarted(true);
+      
+      // Initialize drag items for first question if it's a drag-drop type
+      if (data.questions[0]?.type === 'drag-drop' && data.questions[0].dragItems) {
+        setDraggedItems(data.questions[0].dragItems.map(item => item.id).sort(() => Math.random() - 0.5));
+      } else if (data.questions[0]?.type === 'fill-in-blank' && data.questions[0].options) {
+        setAvailableOptions([...data.questions[0].options]);
+        setFillInBlanks({});
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate quiz');
     } finally {
@@ -104,14 +145,29 @@ export default function QuizGenerator({
     }
   };
 
-  const handleAnswer = (answer: string) => {
+  const handleAnswer = (answer: string, dragOrder?: string[], matchedPairs?: { left: string; right: string }[]) => {
     const currentQuestion = questions[currentQuestionIndex];
-    const isCorrect = answer.toLowerCase().trim() === currentQuestion.correctAnswer.toLowerCase().trim();
+    let isCorrect = false;
+
+    // Handle different question types
+    if (currentQuestion.type === 'drag-drop' && dragOrder) {
+      const correctOrder = currentQuestion.dragItems?.sort((a, b) => a.correctOrder - b.correctOrder).map(item => item.id) || [];
+      isCorrect = JSON.stringify(dragOrder) === JSON.stringify(correctOrder);
+    } else if (currentQuestion.type === 'matching' && matchedPairs) {
+      const correctPairs = currentQuestion.matchPairs || [];
+      isCorrect = correctPairs.every(pair => 
+        matchedPairs.some(matched => matched.left === pair.left && matched.right === pair.right)
+      );
+    } else {
+      isCorrect = answer.toLowerCase().trim() === currentQuestion.correctAnswer.toLowerCase().trim();
+    }
     
     const newAnswer: UserAnswer = {
       questionId: currentQuestion.id,
       answer,
       isCorrect,
+      dragOrder,
+      matchedPairs,
     };
 
     setUserAnswers(prev => [...prev, newAnswer]);
@@ -123,10 +179,98 @@ export default function QuizGenerator({
     setShowExplanation(true);
   };
 
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent, itemId: string) => {
+    e.dataTransfer.setData('text/plain', itemId);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragOverIndex(index);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverIndex(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    const draggedItemId = e.dataTransfer.getData('text/plain');
+    
+    const newOrder = [...draggedItems];
+    const draggedIndex = newOrder.indexOf(draggedItemId);
+    
+    if (draggedIndex !== -1) {
+      newOrder.splice(draggedIndex, 1);
+    }
+    newOrder.splice(index, 0, draggedItemId);
+    
+    setDraggedItems(newOrder);
+    setDragOverIndex(null);
+  };
+
+  const handleDragSubmit = () => {
+    handleAnswer('', draggedItems);
+  };
+
+  // Fill-in-blank drag and drop handlers
+  const handleOptionDragStart = (e: React.DragEvent, option: string) => {
+    e.dataTransfer.setData('text/plain', option);
+    setDraggedOption(option);
+  };
+
+  const handleBlankDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleBlankDrop = (e: React.DragEvent, blankId: string) => {
+    e.preventDefault();
+    const option = e.dataTransfer.getData('text/plain');
+    
+    // Update the blank with the dropped option
+    setFillInBlanks(prev => ({ ...prev, [blankId]: option }));
+    
+    // Remove the option from available options
+    setAvailableOptions(prev => prev.filter(opt => opt !== option));
+    setDraggedOption(null);
+  };
+
+  const removeFromBlank = (blankId: string) => {
+    const removedOption = fillInBlanks[blankId];
+    if (removedOption) {
+      // Add back to available options
+      setAvailableOptions(prev => [...prev, removedOption]);
+      // Remove from blank
+      setFillInBlanks(prev => {
+        const newBlanks = { ...prev };
+        delete newBlanks[blankId];
+        return newBlanks;
+      });
+    }
+  };
+
+  const submitFillInBlank = () => {
+    const answer = Object.values(fillInBlanks).join(' ');
+    handleAnswer(answer);
+  };
+
   const nextQuestion = () => {
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
       setShowExplanation(false);
+      setDraggedItems([]);
+      setDragOverIndex(null);
+      setFillInBlanks({});
+      setAvailableOptions([]);
+      setDraggedOption(null);
+      
+      // Initialize drag items for next question if it's a drag-drop type
+      const nextQ = questions[currentQuestionIndex + 1];
+      if (nextQ?.type === 'drag-drop' && nextQ.dragItems) {
+        setDraggedItems(nextQ.dragItems.map(item => item.id).sort(() => Math.random() - 0.5));
+      } else if (nextQ?.type === 'fill-in-blank' && nextQ.options) {
+        setAvailableOptions([...nextQ.options]);
+      }
     } else {
       setQuizCompleted(true);
     }
@@ -142,6 +286,11 @@ export default function QuizGenerator({
     setError(null);
     setQuizStarted(false);
     setTimeSpent(0);
+    setDraggedItems([]);
+    setDragOverIndex(null);
+    setFillInBlanks({});
+    setAvailableOptions([]);
+    setDraggedOption(null);
   };
 
   const getCurrentAnswer = () => {
@@ -151,15 +300,19 @@ export default function QuizGenerator({
   const getQuestionTypeIcon = (type: string) => {
     switch (type) {
       case 'multiple-choice':
-        return <Target className="w-4 h-4" />;
+        return <Target className="w-5 h-5 text-white" />;
       case 'true-false':
-        return <CheckCircle className="w-4 h-4" />;
+        return <CheckCircle className="w-5 h-5 text-white" />;
       case 'short-answer':
-        return <BookOpen className="w-4 h-4" />;
+        return <BookOpen className="w-5 h-5 text-white" />;
       case 'fill-in-blank':
-        return <HelpCircle className="w-4 h-4" />;
+        return <HelpCircle className="w-5 h-5 text-white" />;
+      case 'drag-drop':
+        return <GripVertical className="w-5 h-5 text-white" />;
+      case 'matching':
+        return <ArrowRight className="w-5 h-5 text-white" />;
       default:
-        return <Brain className="w-4 h-4" />;
+        return <Brain className="w-5 h-5 text-white" />;
     }
   };
 
@@ -173,6 +326,10 @@ export default function QuizGenerator({
         return 'bg-purple-100 text-purple-800 border-purple-200';
       case 'fill-in-blank':
         return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'drag-drop':
+        return 'bg-pink-100 text-pink-800 border-pink-200';
+      case 'matching':
+        return 'bg-indigo-100 text-indigo-800 border-indigo-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
@@ -207,273 +364,418 @@ export default function QuizGenerator({
   if (!isVisible) return null;
 
   return (
-    <div className="w-full max-w-4xl mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="text-center space-y-2">
-        <div className="flex items-center justify-center gap-2">
-          <Brain className="w-6 h-6 text-blue-600" />
-          <h2 className="text-2xl font-bold text-gray-800">Knowledge Quiz</h2>
+    <div className="w-full bg-gray-50">
+      <div className="max-w-4xl mx-auto p-8">
+        {/* Quiz Header */}
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-2">
+            <Brain className="w-6 h-6 text-purple-600" />
+            <h2 className="text-2xl font-bold text-gray-900">Knowledge Quiz</h2>
+          </div>
+          <p className="text-gray-600">Test your understanding with interactive questions</p>
         </div>
-        <p className="text-gray-600">Test your understanding of the generated content</p>
-      </div>
 
-      {/* Generate Quiz Button */}
-      {!quizStarted && !isLoading && (
-        <Card className="p-6 text-center space-y-4 border-2 border-dashed border-gray-300">
-          <div className="flex items-center justify-center gap-2">
-            <Zap className="w-5 h-5 text-blue-600" />
-            <h3 className="text-lg font-semibold text-gray-800">Ready to Test Your Knowledge?</h3>
-          </div>
-          <p className="text-gray-600">
-            Generate a quiz based on: "<span className="font-medium text-blue-600">{prompt}</span>"
-          </p>
-          <Button 
-            onClick={generateQuiz} 
-            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium transition-colors"
-          >
-            <Brain className="w-4 h-4 mr-2" />
-            Generate Quiz
-          </Button>
-        </Card>
-      )}
-
-      {/* Loading State */}
-      {isLoading && (
-        <Card className="p-8 text-center">
-          <div className="flex flex-col items-center gap-4">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-            <div className="space-y-2">
-              <h3 className="text-lg font-semibold text-gray-800">Generating Quiz...</h3>
-              <p className="text-gray-600">Creating questions based on your content</p>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Error State */}
-      {error && (
-        <Card className="p-4 border-red-200 bg-red-50">
-          <div className="flex items-center gap-2">
-            <XCircle className="w-5 h-5 text-red-600" />
-            <p className="text-red-700">{error}</p>
-          </div>
-        </Card>
-      )}
-
-      {/* Quiz Progress */}
-      {quizStarted && !quizCompleted && questions.length > 0 && (
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Badge variant="outline" className="px-3 py-1">
-                Question {currentQuestionIndex + 1} of {questions.length}
-              </Badge>
-              <div className="flex items-center gap-2 text-gray-600">
-                <Clock className="w-4 h-4" />
-                <span className="text-sm">{formatTime(timeSpent)}</span>
+        {/* Loading State */}
+        {isLoading && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
+            <div className="flex flex-col items-center gap-4">
+              <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold text-gray-800">Generating Quiz...</h3>
+                <p className="text-gray-600">Creating personalized questions from your content</p>
               </div>
             </div>
-            <div className="w-48 bg-gray-200 rounded-full h-2">
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <div className="bg-white rounded-xl shadow-sm border border-red-200 p-4 mb-6">
+            <div className="flex items-center gap-2">
+              <XCircle className="w-5 h-5 text-red-600" />
+              <p className="text-red-700">{error}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Quiz Progress Bar */}
+        {quizStarted && !quizCompleted && questions.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-medium text-gray-700">
+                  Question {currentQuestionIndex + 1} of {questions.length}
+                </span>
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Clock className="w-4 h-4" />
+                  <span className="text-sm">{formatTime(timeSpent)}</span>
+                </div>
+              </div>
+              <span className="text-sm text-gray-600">
+                {Math.round(((currentQuestionIndex + 1) / questions.length) * 100)}% Complete
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
               <div 
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-300"
                 style={{ width: `${((currentQuestionIndex + 1) / questions.length) * 100}%` }}
               />
             </div>
           </div>
-        </Card>
-      )}
+        )}
 
-      {/* Quiz Question */}
-      {quizStarted && !quizCompleted && questions.length > 0 && (
-        <Card className="p-6 space-y-6">
-          <div className="space-y-4">
-            {/* Question Header */}
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <div className="flex items-center gap-2">
-                <Badge className={`px-3 py-1 ${getQuestionTypeColor(questions[currentQuestionIndex].type)}`}>
-                  {getQuestionTypeIcon(questions[currentQuestionIndex].type)}
-                  <span className="ml-1 capitalize">{questions[currentQuestionIndex].type.replace('-', ' ')}</span>
-                </Badge>
-                {questions[currentQuestionIndex].difficulty && (
-                  <Badge className={`px-3 py-1 ${getDifficultyColor(questions[currentQuestionIndex].difficulty)}`}>
-                    {questions[currentQuestionIndex].difficulty}
-                  </Badge>
-                )}
-              </div>
-            </div>
+        {/* Quiz Questions - Horizontal Cards */}
+        {quizStarted && !quizCompleted && questions.length > 0 && (
+          <div className="relative">
+            <div className="flex gap-6 overflow-x-auto scrollbar-hide pb-4" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              <style jsx>{`
+                .scrollbar-hide::-webkit-scrollbar {
+                  display: none;
+                }
+              `}</style>
+              <div className="flex-shrink-0 w-full">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 h-full">
+                  {/* Question Header */}
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                      {getQuestionTypeIcon(questions[currentQuestionIndex].type)}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold text-gray-900">{questions[currentQuestionIndex].question}</h3>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Badge className={`px-2 py-1 text-xs ${getQuestionTypeColor(questions[currentQuestionIndex].type)}`}>
+                          {questions[currentQuestionIndex].type.replace('-', ' ')}
+                        </Badge>
+                        {questions[currentQuestionIndex].difficulty && (
+                          <Badge className={`px-2 py-1 text-xs ${getDifficultyColor(questions[currentQuestionIndex].difficulty)}`}>
+                            {questions[currentQuestionIndex].difficulty}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
 
-            {/* Question Text */}
-            <div className="prose prose-gray max-w-none">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                {questions[currentQuestionIndex].question}
-              </h3>
-            </div>
+                  {/* Answer Section */}
+                  <div className="space-y-4 mb-6">
+                    {/* Multiple Choice */}
+                    {questions[currentQuestionIndex].type === 'multiple-choice' && questions[currentQuestionIndex].options && (
+                      <div className="grid gap-3">
+                        {questions[currentQuestionIndex].options!.map((option, index) => (
+                          <button
+                            key={index}
+                            className="w-full p-4 text-left border border-gray-200 rounded-lg hover:border-purple-300 hover:bg-purple-50 transition-all duration-200 flex items-center gap-3"
+                            onClick={() => handleAnswer(option)}
+                            disabled={!!getCurrentAnswer()}
+                          >
+                            <span className="w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-medium">
+                              {String.fromCharCode(65 + index)}
+                            </span>
+                            <span className="text-gray-700">{option}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
 
-            {/* Answer Options */}
-            <div className="space-y-3">
-              {questions[currentQuestionIndex].type === 'multiple-choice' && questions[currentQuestionIndex].options && (
-                <div className="space-y-2">
-                  {questions[currentQuestionIndex].options!.map((option, index) => (
-                    <Button
-                      key={index}
-                      variant="outline"
-                      className="w-full justify-start p-4 h-auto text-left hover:bg-blue-50 hover:border-blue-300 transition-colors"
-                      onClick={() => handleAnswer(option)}
-                      disabled={!!getCurrentAnswer()}
-                    >
-                      <span className="font-medium text-blue-600 mr-3">{String.fromCharCode(65 + index)}.</span>
-                      {option}
-                    </Button>
-                  ))}
-                </div>
-              )}
+                    {/* True/False */}
+                    {questions[currentQuestionIndex].type === 'true-false' && (
+                      <div className="grid grid-cols-2 gap-4">
+                        <button
+                          className="p-6 border border-gray-200 rounded-lg hover:border-green-300 hover:bg-green-50 transition-all duration-200 flex items-center justify-center gap-3"
+                          onClick={() => handleAnswer('true')}
+                          disabled={!!getCurrentAnswer()}
+                        >
+                          <CheckCircle className="w-5 h-5 text-green-600" />
+                          <span className="font-medium text-gray-700">True</span>
+                        </button>
+                        <button
+                          className="p-6 border border-gray-200 rounded-lg hover:border-red-300 hover:bg-red-50 transition-all duration-200 flex items-center justify-center gap-3"
+                          onClick={() => handleAnswer('false')}
+                          disabled={!!getCurrentAnswer()}
+                        >
+                          <XCircle className="w-5 h-5 text-red-600" />
+                          <span className="font-medium text-gray-700">False</span>
+                        </button>
+                      </div>
+                    )}
 
-              {questions[currentQuestionIndex].type === 'true-false' && (
-                <div className="flex gap-4">
-                  <Button
-                    variant="outline"
-                    className="flex-1 p-4 hover:bg-green-50 hover:border-green-300 transition-colors"
-                    onClick={() => handleAnswer('true')}
-                    disabled={!!getCurrentAnswer()}
-                  >
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    True
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="flex-1 p-4 hover:bg-red-50 hover:border-red-300 transition-colors"
-                    onClick={() => handleAnswer('false')}
-                    disabled={!!getCurrentAnswer()}
-                  >
-                    <XCircle className="w-4 h-4 mr-2" />
-                    False
-                  </Button>
-                </div>
-              )}
+                    {/* Drag and Drop */}
+                    {questions[currentQuestionIndex].type === 'drag-drop' && questions[currentQuestionIndex].dragItems && (
+                      <div className="space-y-4">
+                        <p className="text-sm text-gray-600 mb-4">Drag the items below to arrange them in the correct order:</p>
+                        <div className="grid gap-2 min-h-[200px] border-2 border-dashed border-gray-300 rounded-lg p-4">
+                          {draggedItems.map((itemId, index) => {
+                            const item = questions[currentQuestionIndex].dragItems?.find(d => d.id === itemId);
+                            return (
+                              <div
+                                key={itemId}
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, itemId)}
+                                onDragOver={(e) => handleDragOver(e, index)}
+                                onDragLeave={handleDragLeave}
+                                onDrop={(e) => handleDrop(e, index)}
+                                className={`p-3 bg-white border rounded-lg cursor-move flex items-center gap-3 transition-all duration-200 ${
+                                  dragOverIndex === index ? 'border-purple-300 bg-purple-50' : 'border-gray-200 hover:border-purple-200'
+                                }`}
+                              >
+                                <GripVertical className="w-4 h-4 text-gray-400" />
+                                <span className="text-gray-700">{item?.text}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {!getCurrentAnswer() && (
+                          <button
+                            onClick={handleDragSubmit}
+                            className="w-full p-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+                          >
+                            Submit Order
+                          </button>
+                        )}
+                      </div>
+                    )}
 
-              {(questions[currentQuestionIndex].type === 'short-answer' || questions[currentQuestionIndex].type === 'fill-in-blank') && (
-                <div className="space-y-3">
-                  <input
-                    type="text"
-                    placeholder="Type your answer here..."
-                    className="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !getCurrentAnswer()) {
-                        handleAnswer(e.currentTarget.value);
-                      }
-                    }}
-                    disabled={!!getCurrentAnswer()}
-                  />
-                  <Button
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                    onClick={(e) => {
-                      const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-                      if (input.value.trim()) {
-                        handleAnswer(input.value.trim());
-                      }
-                    }}
-                    disabled={!!getCurrentAnswer()}
-                  >
-                    Submit Answer
-                  </Button>
-                </div>
-              )}
-            </div>
+                    {/* Enhanced Fill-in-Blank with Drag & Drop */}
+                    {questions[currentQuestionIndex].type === 'fill-in-blank' && (
+                      <div className="space-y-6">
+                        {/* Question with Interactive Blanks */}
+                        <div className="bg-gray-50 p-6 rounded-lg border-2 border-dashed border-gray-300">
+                          <div className="text-lg leading-relaxed">
+                            {(() => {
+                              const questionText = questions[currentQuestionIndex].question;
+                              const parts = questionText.split('_____');
+                              
+                              return parts.map((part, index) => (
+                                <span key={index}>
+                                  {part}
+                                  {index < parts.length - 1 && (
+                                    <span
+                                      className={`inline-block min-w-[120px] mx-2 px-3 py-2 border-2 border-dashed rounded-lg transition-all duration-200 ${
+                                        fillInBlanks[`blank-${index}`]
+                                          ? 'bg-purple-100 border-purple-300 text-purple-800 cursor-pointer'
+                                          : 'bg-white border-gray-300 hover:border-purple-400'
+                                      }`}
+                                      onDragOver={handleBlankDragOver}
+                                      onDrop={(e) => handleBlankDrop(e, `blank-${index}`)}
+                                      onClick={() => fillInBlanks[`blank-${index}`] && removeFromBlank(`blank-${index}`)}
+                                      title={fillInBlanks[`blank-${index}`] ? 'Click to remove' : 'Drop an option here'}
+                                    >
+                                      {fillInBlanks[`blank-${index}`] || (
+                                        <span className="text-gray-400 italic text-sm">Drop here</span>
+                                      )}
+                                    </span>
+                                  )}
+                                </span>
+                              ));
+                            })()}
+                          </div>
+                        </div>
 
-            {/* Answer Feedback */}
-            {showExplanation && getCurrentAnswer() && (
-              <Card className={`p-4 ${getCurrentAnswer()?.isCorrect ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-                <div className="flex items-start gap-3">
-                  {getCurrentAnswer()?.isCorrect ? (
-                    <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
-                  ) : (
-                    <XCircle className="w-5 h-5 text-red-600 mt-0.5" />
-                  )}
-                  <div className="space-y-2">
-                    <h4 className={`font-semibold ${getCurrentAnswer()?.isCorrect ? 'text-green-800' : 'text-red-800'}`}>
-                      {getCurrentAnswer()?.isCorrect ? 'Correct!' : 'Incorrect'}
-                    </h4>
-                    <p className="text-gray-700">{questions[currentQuestionIndex].explanation}</p>
-                    {!getCurrentAnswer()?.isCorrect && (
-                      <p className="text-sm text-gray-600">
-                        <strong>Correct answer:</strong> {questions[currentQuestionIndex].correctAnswer}
-                      </p>
+                        {/* Draggable Options */}
+                        <div className="space-y-3">
+                          <h4 className="font-medium text-gray-700 flex items-center gap-2">
+                            <GripVertical className="w-4 h-4 text-gray-500" />
+                            Drag the correct answer to the blank:
+                          </h4>
+                          <div className="flex flex-wrap gap-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                            {(questions[currentQuestionIndex].options || []).filter(option => 
+                              !Object.values(fillInBlanks).includes(option)
+                            ).map((option, index) => (
+                              <div
+                                key={`${option}-${index}`}
+                                draggable
+                                onDragStart={(e) => handleOptionDragStart(e, option)}
+                                className={`px-4 py-3 bg-white border-2 border-blue-300 rounded-lg cursor-move transition-all duration-200 hover:border-purple-400 hover:shadow-lg select-none transform hover:-translate-y-1 ${
+                                  draggedOption === option ? 'opacity-50 scale-95' : 'hover:scale-105'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <GripVertical className="w-4 h-4 text-gray-400" />
+                                  <span className="text-gray-800 font-medium">{option}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          
+                          {/* Status Messages */}
+                          {questions[currentQuestionIndex].options && 
+                           questions[currentQuestionIndex].options.filter(option => 
+                             !Object.values(fillInBlanks).includes(option)
+                           ).length === 0 && 
+                           Object.keys(fillInBlanks).length > 0 && (
+                            <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                              <p className="text-sm text-green-700 font-medium">
+                                All options have been used! Click on filled blanks to remove them if needed.
+                              </p>
+                            </div>
+                          )}
+
+                          {questions[currentQuestionIndex].options && 
+                           questions[currentQuestionIndex].options.length === 0 && (
+                            <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                              <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                              <p className="text-sm text-yellow-700">
+                                No options available for this question.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Submit Button */}
+                        {Object.keys(fillInBlanks).length > 0 && !getCurrentAnswer() && (
+                          <button
+                            onClick={submitFillInBlank}
+                            className="w-full p-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-300 font-medium shadow-lg transform hover:scale-105"
+                          >
+                            Submit Answer
+                          </button>
+                        )}
+                        
+                        <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                          <p className="text-xs text-blue-700">
+                            💡 Tip: Drag options to the blanks, or click filled blanks to remove them
+                          </p>
+                        </div>
+
+                        {/* Debug Info (remove in production) */}
+                        {process.env.NODE_ENV === 'development' && (
+                          <div className="mt-4 p-3 bg-gray-100 rounded text-xs">
+                            <p><strong>Available Options:</strong> {JSON.stringify(questions[currentQuestionIndex].options)}</p>
+                            <p><strong>Fill In Blanks:</strong> {JSON.stringify(fillInBlanks)}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Regular Text Input for Short Answer */}
+                    {questions[currentQuestionIndex].type === 'short-answer' && (
+                      <div className="space-y-3">
+                        <textarea
+                          placeholder="Type your answer here..."
+                          className="w-full p-4 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                          rows={3}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && e.ctrlKey && !getCurrentAnswer()) {
+                              handleAnswer(e.currentTarget.value);
+                            }
+                          }}
+                          disabled={!!getCurrentAnswer()}
+                        />
+                        <button
+                          className="w-full p-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+                          onClick={(e) => {
+                            const textarea = e.currentTarget.previousElementSibling as HTMLTextAreaElement;
+                            if (textarea.value.trim()) {
+                              handleAnswer(textarea.value.trim());
+                            }
+                          }}
+                          disabled={!!getCurrentAnswer()}
+                        >
+                          Submit Answer
+                        </button>
+                        <p className="text-xs text-gray-500">Press Ctrl+Enter to submit quickly</p>
+                      </div>
                     )}
                   </div>
-                </div>
-              </Card>
-            )}
 
-            {/* Next Question Button */}
-            {showExplanation && (
-              <div className="flex justify-end">
-                <Button
-                  onClick={nextQuestion}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2"
+                  {/* Answer Feedback */}
+                  {showExplanation && getCurrentAnswer() && (
+                    <div className={`p-4 rounded-lg mb-4 ${getCurrentAnswer()?.isCorrect ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+                      <div className="flex items-start gap-3">
+                        {getCurrentAnswer()?.isCorrect ? (
+                          <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
+                        ) : (
+                          <XCircle className="w-5 h-5 text-red-600 mt-0.5" />
+                        )}
+                        <div className="space-y-2">
+                          <h4 className={`font-semibold ${getCurrentAnswer()?.isCorrect ? 'text-green-800' : 'text-red-800'}`}>
+                            {getCurrentAnswer()?.isCorrect ? 'Excellent! That\'s correct!' : 'Not quite right'}
+                          </h4>
+                          <p className="text-gray-700 text-sm">{questions[currentQuestionIndex].explanation}</p>
+                          {!getCurrentAnswer()?.isCorrect && (
+                            <p className="text-sm text-gray-600">
+                              <strong>Correct answer:</strong> {questions[currentQuestionIndex].correctAnswer}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Next Question Button */}
+                  {showExplanation && (
+                    <div className="flex justify-end">
+                      <button
+                        onClick={nextQuestion}
+                        className="text-purple-600 hover:text-purple-800 transition-colors font-medium text-sm flex items-center gap-2"
+                      >
+                        <span>{currentQuestionIndex < questions.length - 1 ? `Question ${currentQuestionIndex + 2}` : 'View Results'}</span>
+                        <span>---&gt;</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Quiz Completion */}
+        {quizCompleted && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
+            <div className="space-y-6">
+              <div className="flex items-center justify-center">
+                <div className="relative">
+                  <Trophy className="w-20 h-20 text-yellow-500" />
+                  <div className="absolute -top-2 -right-2 w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
+                    <span className="text-white text-sm font-bold">{score}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <h3 className="text-3xl font-bold text-gray-900">Quiz Complete!</h3>
+                <p className="text-gray-600">Congratulations on completing the quiz!</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-lg mx-auto">
+                <div className="text-center p-6 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl">
+                  <div className={`text-3xl font-bold ${getScoreColor()}`}>{score}/{questions.length}</div>
+                  <div className="text-sm text-gray-600 font-medium">Score</div>
+                </div>
+                <div className="text-center p-6 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl">
+                  <div className={`text-3xl font-bold ${getScoreColor()}`}>
+                    {Math.round((score / questions.length) * 100)}%
+                  </div>
+                  <div className="text-sm text-gray-600 font-medium">Accuracy</div>
+                </div>
+                <div className="text-center p-6 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl">
+                  <div className="text-3xl font-bold text-purple-600">{formatTime(timeSpent)}</div>
+                  <div className="text-sm text-gray-600 font-medium">Time</div>
+                </div>
+              </div>
+
+              <div className="flex gap-4 justify-center">
+                <button
+                  onClick={resetQuiz}
+                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center gap-2"
                 >
-                  {currentQuestionIndex < questions.length - 1 ? 'Next Question' : 'Complete Quiz'}
-                </Button>
+                  <RefreshCw className="w-4 h-4" />
+                  Reset Quiz
+                </button>
+                <button
+                  onClick={generateQuiz}
+                  className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-300 font-medium flex items-center gap-2"
+                >
+                  <Brain className="w-4 h-4" />
+                  New Quiz
+                </button>
               </div>
-            )}
-          </div>
-        </Card>
-      )}
-
-      {/* Quiz Completion */}
-      {quizCompleted && (
-        <Card className="p-8 text-center space-y-6">
-          <div className="space-y-4">
-            <div className="flex items-center justify-center">
-              <div className="relative">
-                <Trophy className="w-16 h-16 text-yellow-500" />
-                <div className="absolute -top-2 -right-2 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">{score}</span>
-                </div>
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <h3 className="text-2xl font-bold text-gray-800">Quiz Complete!</h3>
-              <p className="text-gray-600">Great job testing your knowledge!</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-md mx-auto">
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <div className={`text-2xl font-bold ${getScoreColor()}`}>{score}/{questions.length}</div>
-                <div className="text-sm text-gray-600">Score</div>
-              </div>
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <div className={`text-2xl font-bold ${getScoreColor()}`}>
-                  {Math.round((score / questions.length) * 100)}%
-                </div>
-                <div className="text-sm text-gray-600">Accuracy</div>
-              </div>
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <div className="text-2xl font-bold text-blue-600">{formatTime(timeSpent)}</div>
-                <div className="text-sm text-gray-600">Time</div>
-              </div>
-            </div>
-
-            <div className="flex gap-4 justify-center">
-              <Button
-                onClick={resetQuiz}
-                variant="outline"
-                className="px-6 py-2"
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Reset Quiz
-              </Button>
-              <Button
-                onClick={generateQuiz}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2"
-              >
-                <Brain className="w-4 h-4 mr-2" />
-                Generate New Quiz
-              </Button>
             </div>
           </div>
-        </Card>
-      )}
+        )}
+      </div>
     </div>
   );
 } 

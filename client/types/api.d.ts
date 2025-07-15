@@ -27,3 +27,27 @@ export interface GeneratedSection {
   isChained?: boolean;
   imageUrl?: string; // New field for section-specific images
 }
+
+// Quiz-related interfaces
+export interface QuizRequest {
+  prompt: string;
+  generatedContent: string;
+  questionCount?: number;
+}
+
+export interface QuizQuestion {
+  id: string;
+  type: 'multiple-choice' | 'true-false' | 'short-answer' | 'fill-in-blank' | 'drag-drop' | 'matching';
+  question: string;
+  options?: string[];
+  correctAnswer: string;
+  explanation: string;
+  difficulty?: 'easy' | 'medium' | 'hard';
+  dragItems?: { id: string; text: string; correctOrder: number }[];
+  matchPairs?: { left: string; right: string }[];
+}
+
+export interface QuizResponse {
+  questions: QuizQuestion[];
+  totalQuestions: number;
+}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import React from 'react';
 import VisualBlock from './VisualBlock';
 import { ChevronRight, BookOpen, Lightbulb, CheckCircle, FileText, Brain, Search, Microscope, Loader2, Link, TrendingUp, MessageSquare, Image } from 'lucide-react';
@@ -20,6 +20,7 @@ export default function GeneratedContent({
 }: GeneratedContentProps) {
   const [currentSection, setCurrentSection] = useState(0);
   const [showChainHistory, setShowChainHistory] = useState(false);
+  const [currentCardIndex, setCurrentCardIndex] = useState(0);
 
   // Default static sections for when no dynamic content is provided
   const defaultSections = [
@@ -70,6 +71,25 @@ export default function GeneratedContent({
 
   // Get chain history if available
   const chainHistory = promptChain?.getChainHistory() || [];
+
+  // Navigation functions
+  const goToNextCard = () => {
+    if (currentCardIndex < displaySections.length - 1) {
+      setCurrentCardIndex(currentCardIndex + 1);
+    }
+  };
+
+  const goToPreviousCard = () => {
+    if (currentCardIndex > 0) {
+      setCurrentCardIndex(currentCardIndex - 1);
+    }
+  };
+
+  const goToCard = (index: number) => {
+    if (index >= 0 && index < displaySections.length) {
+      setCurrentCardIndex(index);
+    }
+  };
 
   // Function to handle section progression
   const handleNextSection = () => {
@@ -369,101 +389,151 @@ export default function GeneratedContent({
           </div>
         )}
 
-        {/* Content Sections */}
-        <div className="space-y-8">
-          {displaySections.map((section, index) => (
-            <div
-              key={index}
-              className={`transition-all duration-700 animate-streamIn ${
-                isDynamicContent ? 'opacity-100' : (isSectionAccessible(index) ? 'opacity-100' : 'opacity-50')
-              }`}
-              style={{ animationDelay: `${index * 0.1}s` }}
-            >
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                    {(() => {
-                      const IconComponent = getIconForSection(index, isDynamicContent);
-                      return <IconComponent className="w-5 h-5 text-white" />;
-                    })()}
-                  </div>
-                  <div className="flex-1">
-                    <h2 className="text-2xl font-bold text-gray-900">{section.title}</h2>
-                  </div>
-                </div>
-                <p className="text-gray-700 leading-relaxed mb-6">{section.content}</p>
-                
-                {/* Display generated image if available */}
-                {isDynamicContent && (section as GeneratedSection).imageUrl && (
-                  <div className="mb-6 animate-imageFadeIn">
-                    <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-4 border border-purple-200">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Image className="w-4 h-4 text-purple-500" />
-                        <span className="text-sm font-medium text-purple-700">AI Generated Image   <button
-                            onClick={() => window.open((section as GeneratedSection).imageUrl, '_blank')}
-                            className="px-3 py-1 bg-white/90 text-gray-800 rounded-lg text-sm font-medium hover:bg-white transition-all duration-200"
-                          >
-                            View Full Size
-                          </button></span>
+        {/* Content Sections - Single Card Carousel */}
+        <div className="relative">
+          {/* Navigation Dots */}
+          <div className="flex justify-center gap-2 mb-6">
+            {displaySections.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => goToCard(index)}
+                className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                  index === currentCardIndex 
+                    ? 'bg-purple-500 scale-110' 
+                    : 'bg-gray-300 hover:bg-gray-400'
+                }`}
+                title={`Go to ${displaySections[index].title}`}
+              />
+            ))}
+          </div>
+
+          {/* Single Card Display */}
+          <div className="relative bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            {displaySections.length > 0 && (
+              <div className="w-full">
+                {(() => {
+                  const section = displaySections[currentCardIndex];
+                  const nextSection = displaySections[currentCardIndex + 1];
+                  const nextTopicName = nextSection ? nextSection.title : "Complete Lesson";
+                  
+                  return (
+                    <div className="p-6">
+                      {/* Card Header */}
+                      <div className="flex items-center gap-4 mb-4">
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                          {(() => {
+                            const IconComponent = getIconForSection(currentCardIndex, isDynamicContent);
+                            return <IconComponent className="w-5 h-5 text-white" />;
+                          })()}
+                        </div>
+                        <div className="flex-1">
+                          <h2 className="text-2xl font-bold text-gray-900">{section.title}</h2>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-sm text-gray-500">
+                              {currentCardIndex + 1} of {displaySections.length}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="relative group">
-                        <img 
-                          src={(section as GeneratedSection).imageUrl} 
-                          alt={`AI generated image for: ${section.title}`}
-                          className="w-full h-auto rounded-lg shadow-lg border border-purple-200 hover:shadow-xl transition-all duration-300"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
+
+                      {/* Card Content */}
+                      <div className="text-gray-700 leading-relaxed mb-6 text-base">
+                        {section.content}
+                      </div>
+                      
+                      {/* Display generated image if available */}
+                      {isDynamicContent && (section as GeneratedSection).imageUrl && (
+                        <div className="mb-6 animate-imageFadeIn">
+                          <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-4 border border-purple-200">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Image className="w-4 h-4 text-purple-500" />
+                              <span className="text-sm font-medium text-purple-700">AI Generated Image</span>
+                              <button
+                                onClick={() => window.open((section as GeneratedSection).imageUrl, '_blank')}
+                                className="px-3 py-1 bg-white/90 text-gray-800 rounded-lg text-sm font-medium hover:bg-white transition-all duration-200"
+                              >
+                                View Full Size
+                              </button>
+                            </div>
+                            <div className="relative group">
+                              <img 
+                                src={(section as GeneratedSection).imageUrl} 
+                                alt={`AI generated image for: ${section.title}`}
+                                className="w-full h-auto rounded-lg shadow-lg border border-purple-200 hover:shadow-xl transition-all duration-300"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Navigation Footer */}
+                      <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                        {/* Back Button */}
+                        <button
+                          onClick={goToPreviousCard}
+                          disabled={currentCardIndex === 0}
+                          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                            currentCardIndex === 0
+                              ? 'text-gray-400 cursor-not-allowed'
+                              : 'text-purple-600 hover:text-purple-800 hover:bg-purple-50'
+                          }`}
+                        >
+                          <span>&lt;---</span>
+                          <span>{currentCardIndex > 0 ? displaySections[currentCardIndex - 1].title : 'Previous'}</span>
+                        </button>
+
+                        {/* Next Button */}
+                        <button
+                          onClick={() => {
+                            if (!isDynamicContent) {
+                              handleSectionInteraction(currentCardIndex, 'complete');
+                            } else {
+                              goToNextCard();
+                            }
                           }}
-                        />
-                       
+                          className="text-purple-600 hover:text-purple-800 transition-colors font-medium text-sm flex items-center gap-2"
+                        >
+                          <span>{nextTopicName}</span>
+                          <span>---&gt;</span>
+                        </button>
                       </div>
                     </div>
-                  </div>
-                )}
-
-                {!isDynamicContent && index === currentSection && !isGenerating && (
-                  <button
-                    onClick={() => handleSectionInteraction(index, 'complete')}
-                    className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
-                  >
-                    {index === displaySections.length - 1 ? 'Complete Lesson' : 'Continue'}
-                  </button>
-                )}
+                  );
+                })()}
               </div>
-            </div>
-          ))}
+            )}
 
-          {/* Loading Placeholder Sections */}
-          {isGenerating && getLoadingSections().map((loadingSection, index) => (
-            <div
-              key={loadingSection.id}
-              className="transition-all duration-700 opacity-100 animate-streamPulse"
-              style={{ animationDelay: `${index * 0.2}s` }}
-            >
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            {/* Loading Placeholder for Current Card */}
+            {isGenerating && getLoadingSections().length > currentCardIndex && (
+              <div className="p-6">
                 <div className="flex items-center gap-4 mb-4">
                   <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center">
                     <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <h2 className="text-2xl font-bold text-gray-300">{loadingSection.title}</h2>
+                      <h2 className="text-2xl font-bold text-gray-300">
+                        {getLoadingSections()[currentCardIndex]?.title || 'Generating...'}
+                      </h2>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-gray-400">
                       <div className="w-3 h-3 bg-gray-200 rounded-full animate-pulse"></div>
-                      <span>Generating...</span>
+                      <span>Generating content...</span>
                     </div>
                   </div>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
                   <div className="h-4 bg-gray-200 rounded animate-pulse w-3/4"></div>
                   <div className="h-4 bg-gray-200 rounded animate-pulse w-1/2"></div>
                 </div>
               </div>
-            </div>
-          ))}
+            )}
+          </div>
         </div>
 
         {/* Key Concepts - Only show for default content */}
