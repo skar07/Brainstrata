@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import { Send, Paperclip, Smile, Mic, Image } from 'lucide-react';
 import type { GenerateResponse, GeneratedSection } from '../types/api';
 import { PromptChain } from './promptchaining';
+import ImagePromptHandler from '../lib/imagePromptHandler';
 
 interface MessageInputProps {
   onSendMessage: (message: string, response?: string) => void;
@@ -82,11 +83,16 @@ export default function MessageInput({
       const context = buildContextFromChain();
       const isChained = promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 0 : false;
 
-      // Prepare the prompt with image context if in image mode
-      let finalPrompt = userPrompt;
-      if (isImageMode && imageAnalysis) {
-        finalPrompt = `[Image Context: ${imageAnalysis}] ${userPrompt}`;
-      }
+      // Process prompt with image context using ImagePromptHandler
+      const promptResult = ImagePromptHandler.processPrompt({
+        isImageMode,
+        imageAnalysis,
+        userPrompt,
+        context,
+        isChained
+      });
+      
+      const finalPrompt = promptResult.finalPrompt;
 
       // Use streaming mode for better UX
       const res = await fetch('/api/generate', {
@@ -134,17 +140,31 @@ export default function MessageInput({
                     accumulatedResponses = data.allResponses;
                     // Update GeneratedContent with new responses as they come in
                     if (onNewGeneratedContent) {
-                      const sectionTitles = generateSectionTitles(userPrompt);
-                      const generatedSections: GeneratedSection[] = accumulatedResponses.map((response, index) => ({
-                        id: `section-${Date.now()}-${index}`,
-                        title: sectionTitles[index] || `Response ${index + 1}`,
-                        prompt: response.prompt,
-                        content: response.response,
-                        timestamp: new Date(),
-                        chainDepth: promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0,
-                        isChained: promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 1 : false,
-                        imageUrl: '' // Will be updated when image is ready
-                      }));
+                      let generatedSections: GeneratedSection[];
+                      
+                      if (isImageMode && imageAnalysis) {
+                        // Use ImagePromptHandler for image-based sections
+                        generatedSections = ImagePromptHandler.createImageGeneratedSections(
+                          accumulatedResponses,
+                          userPrompt,
+                          imageAnalysis,
+                          promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0
+                        );
+                      } else {
+                        // Use regular section generation
+                        const sectionTitles = generateSectionTitles(userPrompt);
+                        generatedSections = accumulatedResponses.map((response, index) => ({
+                          id: `section-${Date.now()}-${index}`,
+                          title: sectionTitles[index] || `Response ${index + 1}`,
+                          prompt: response.prompt,
+                          content: response.response,
+                          timestamp: new Date(),
+                          chainDepth: promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0,
+                          isChained: promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 1 : false,
+                          imageUrl: '' // Will be updated when image is ready
+                        }));
+                      }
+                      
                       onNewGeneratedContent(generatedSections);
                     }
                     break;
@@ -153,17 +173,35 @@ export default function MessageInput({
                     imageUrl = data.imageUrl;
                     // Update the first section with the image URL
                     if (onNewGeneratedContent && accumulatedResponses.length > 0) {
-                      const sectionTitles = generateSectionTitles(userPrompt);
-                      const generatedSections: GeneratedSection[] = accumulatedResponses.map((response, index) => ({
-                        id: `section-${Date.now()}-${index}`,
-                        title: sectionTitles[index] || `Response ${index + 1}`,
-                        prompt: response.prompt,
-                        content: response.response,
-                        timestamp: new Date(),
-                        chainDepth: promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0,
-                        isChained: promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 1 : false,
-                        imageUrl: index === 0 ? imageUrl : '' // Add image URL to the first section
-                      }));
+                      let generatedSections: GeneratedSection[];
+                      
+                      if (isImageMode && imageAnalysis) {
+                        // Use ImagePromptHandler for image-based sections
+                        generatedSections = ImagePromptHandler.createImageGeneratedSections(
+                          accumulatedResponses,
+                          userPrompt,
+                          imageAnalysis,
+                          promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0
+                        );
+                        // Add image URL to the first section
+                        if (generatedSections.length > 0) {
+                          generatedSections[0].imageUrl = imageUrl;
+                        }
+                      } else {
+                        // Use regular section generation
+                        const sectionTitles = generateSectionTitles(userPrompt);
+                        generatedSections = accumulatedResponses.map((response, index) => ({
+                          id: `section-${Date.now()}-${index}`,
+                          title: sectionTitles[index] || `Response ${index + 1}`,
+                          prompt: response.prompt,
+                          content: response.response,
+                          timestamp: new Date(),
+                          chainDepth: promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0,
+                          isChained: promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 1 : false,
+                          imageUrl: index === 0 ? imageUrl : '' // Add image URL to the first section
+                        }));
+                      }
+                      
                       onNewGeneratedContent(generatedSections);
                     }
                     break;
@@ -171,17 +209,35 @@ export default function MessageInput({
                   case 'complete':
                     // Final update with complete data
                     if (onNewGeneratedContent) {
-                      const sectionTitles = generateSectionTitles(userPrompt);
-                      const generatedSections: GeneratedSection[] = data.responses.map((response: any, index: number) => ({
-                        id: `section-${Date.now()}-${index}`,
-                        title: sectionTitles[index] || `Response ${index + 1}`,
-                        prompt: response.prompt,
-                        content: response.response,
-                        timestamp: new Date(),
-                        chainDepth: promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0,
-                        isChained: promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 1 : false,
-                        imageUrl: index === 0 ? data.imageUrl : '' // Add image URL to the first section
-                      }));
+                      let generatedSections: GeneratedSection[];
+                      
+                      if (isImageMode && imageAnalysis) {
+                        // Use ImagePromptHandler for image-based sections
+                        generatedSections = ImagePromptHandler.createImageGeneratedSections(
+                          data.responses,
+                          userPrompt,
+                          imageAnalysis,
+                          promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0
+                        );
+                        // Add image URL to the first section
+                        if (generatedSections.length > 0) {
+                          generatedSections[0].imageUrl = data.imageUrl;
+                        }
+                      } else {
+                        // Use regular section generation
+                        const sectionTitles = generateSectionTitles(userPrompt);
+                        generatedSections = data.responses.map((response: any, index: number) => ({
+                          id: `section-${Date.now()}-${index}`,
+                          title: sectionTitles[index] || `Response ${index + 1}`,
+                          prompt: response.prompt,
+                          content: response.response,
+                          timestamp: new Date(),
+                          chainDepth: promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0,
+                          isChained: promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 1 : false,
+                          imageUrl: index === 0 ? data.imageUrl : '' // Add image URL to the first section
+                        }));
+                      }
+                      
                       onNewGeneratedContent(generatedSections);
                     }
                     break;
@@ -301,13 +357,7 @@ export default function MessageInput({
             
             {/* Input Actions */}
             <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
-              <button
-                type="button"
-                className="p-1.5 text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-all duration-200"
-                title="Attach file"
-              >
-                <Paperclip className="w-4 h-4" />
-              </button>
+             
               <div
                 className="p-1.5 rounded-lg transition-all duration-200 text-purple-400 bg-purple-500/20"
                 title="Image generation enabled"

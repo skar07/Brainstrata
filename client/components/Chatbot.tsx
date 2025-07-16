@@ -5,6 +5,7 @@ import MessageInput from './MessageInput';
 import { Bot, User, ChevronLeft, Copy, ThumbsUp, ThumbsDown, Sparkles, MessageCircle, Zap, Star, Brain, Lightbulb, Target, Coffee, Image, Upload } from 'lucide-react';
 import type { GeneratedSection } from '../types/api';
 import { PromptChain } from './promptchaining';
+import ImagePromptHandler from '../lib/imagePromptHandler';
 
 interface Message {
   id: string;
@@ -153,6 +154,19 @@ export default function Chatbot({
 
   const handleImageUpload = async (file: File) => {
     try {
+      // Validate image file
+      const validation = ImagePromptHandler.validateImageFile(file);
+      if (!validation.isValid) {
+        const errorMessage: Message = {
+          id: Date.now().toString(),
+          content: `❌ ${validation.error}`,
+          isBot: true,
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, errorMessage]);
+        return;
+      }
+
       // Convert file to base64
       const reader = new FileReader();
       reader.onload = async (e) => {
@@ -175,7 +189,7 @@ export default function Chatbot({
           // Add a system message about image analysis
           const analysisMessage: Message = {
             id: Date.now().toString(),
-            content: `📷 Image uploaded and analyzed. You can now ask questions about this image.`,
+            content: `📷 Image uploaded and analyzed successfully! You can now ask questions about this image.`,
             isBot: true,
             timestamp: new Date(),
           };
@@ -314,7 +328,14 @@ export default function Chatbot({
                 !isImageMode ? 'text-white' : 'text-white/50'
               }`}>Text</span>
               <button
-                onClick={() => setIsImageMode(!isImageMode)}
+                onClick={() => {
+                  setIsImageMode(!isImageMode);
+                  // Clear image state when switching to text mode
+                  if (isImageMode) {
+                    setUploadedImage(null);
+                    setImageAnalysis(null);
+                  }
+                }}
                 className={`relative w-12 h-6 rounded-full transition-all duration-300 shadow-lg ${
                   isImageMode 
                     ? 'bg-gradient-to-r from-purple-500 to-pink-500 shadow-purple-500/30' 
@@ -369,11 +390,13 @@ export default function Chatbot({
                       className="w-full h-24 object-cover rounded-xl border border-white/20 group-hover:border-purple-300/50 transition-all duration-300"
                     />
                     <button
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
                         setUploadedImage(null);
                         setImageAnalysis(null);
                       }}
-                      className="absolute top-2 right-2 w-6 h-6 bg-red-500/90 text-white rounded-full flex items-center justify-center text-sm hover:bg-red-500 hover:scale-110 transition-all duration-200 shadow-lg"
+                      className="absolute top-2 right-2 w-6 h-6 bg-red-500/90 text-white rounded-full flex items-center justify-center text-sm hover:bg-red-500 hover:scale-110 transition-all duration-200 shadow-lg z-10"
                       title="Remove image"
                     >
                       ×
