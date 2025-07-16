@@ -367,8 +367,8 @@ export default function Chatbot({
             </div>
           </div>
 
-          {/* Enhanced Message Input - Fixed */}
-          <div className="flex-shrink-0 p-3 border-t border-white/20 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 backdrop-blur-sm relative z-10">
+          {/* Professional Message Input - Fixed at Bottom */}
+          <div className="flex-shrink-0 p-4 border-t border-slate-700/50 bg-slate-900/80 backdrop-blur-lg relative z-10">
             <MessageInput 
               onSendMessage={handleSendMessage}
               onNewGeneratedContent={onNewGeneratedContent}

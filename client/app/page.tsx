@@ -2,7 +2,7 @@
 import React from 'react';
 import { useState } from 'react';
 import Sidebar from '@/components/Sidebar';
-import GeneratedContent from '@/components/GeneratedContent';
+import Dashboard from '@/components/Dashboard';
 import Chatbot from '@/components/Chatbot';
 import { Menu, X, Sparkles, Star, Zap, LogOut, Settings } from 'lucide-react';
 import type { GeneratedSection } from '@/types/api';
@@ -16,9 +16,7 @@ export default function Home() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isChatbotCollapsed, setIsChatbotCollapsed] = useState(false);
-  const [generatedSections, setGeneratedSections] = useState<GeneratedSection[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [currentPromptChain, setCurrentPromptChain] = useState<PromptChain | undefined>(undefined);
+  // Dashboard handles its own state
   
   // Auth state and logout functionality
   const { user, logout, isAuthenticated, isLoading } = useAuth();
@@ -30,17 +28,7 @@ export default function Home() {
       router.push('/login');
     }
   }, [isAuthenticated, isLoading, router]);
-  const handleNewGeneratedContent = (sections: GeneratedSection[]) => {
-    setGeneratedSections(sections);
-  };
-
-  const handleGeneratingStateChange = (generating: boolean) => {
-    setIsGenerating(generating);
-  };
-
-  const handleChainUpdate = (chain: PromptChain) => {
-    setCurrentPromptChain(chain);
-  };
+  // Dashboard handles its own content
 
   const handleLogout = () => {
     logout();
@@ -156,11 +144,7 @@ export default function Home() {
           
           {/* Main content area - takes remaining space */}
           <div className="flex-1 h-full overflow-auto">
-          <GeneratedContent 
-            sections={generatedSections} 
-            isGenerating={isGenerating}
-            promptChain={currentPromptChain}
-          />
+            <Dashboard />
           </div>
           
           {/* Right spacer - matches chatbot width */}
@@ -179,9 +163,6 @@ export default function Home() {
       {/* Enhanced Desktop Chatbot - Fixed Position */}
       <div className="hidden lg:block fixed top-0 right-0 z-20">
         <Chatbot 
-        onNewGeneratedContent={handleNewGeneratedContent}
-        onGeneratingStateChange={handleGeneratingStateChange}
-        onChainUpdate={handleChainUpdate}
           isCollapsed={isChatbotCollapsed}
           setIsCollapsed={setIsChatbotCollapsed}
         />
