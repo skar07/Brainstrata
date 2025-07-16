@@ -1,15 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { 
-  Home, 
-  BookOpen, 
-  Users, 
-  Settings, 
-  ChevronLeft, 
-  ChevronRight, 
-  Award, 
-  TrendingUp, 
+import {
+  Home,
+  BookOpen,
+  Users,
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  Award,
+  TrendingUp,
   Calendar,
   MessageCircle,
   Bell,
@@ -18,11 +18,12 @@ import {
   Star,
   Zap,
   Target,
-  Play,
-  Clock,
-  ChevronDown,
-  ChevronUp
+  LogOut,
+  Power
 } from 'lucide-react';
+
+import { useAuth } from '@/lib/stores/authStore';
+import { useRouter } from 'next/navigation';
 import { mockCourses } from '@/data/courses';
 import type { Course } from '@/types/api';
 import CompactCatalog from './CompactCatalog';
@@ -36,8 +37,8 @@ interface SidebarProps {
   onLessonSelect?: (courseId: string, lessonId: string) => void;
 }
 
-export default function Sidebar({ 
-  isCollapsed: externalIsCollapsed, 
+export default function Sidebar({
+  isCollapsed: externalIsCollapsed,
   setIsCollapsed: externalSetIsCollapsed,
   onNavigate = () => {},
   currentSection = 'dashboard',
@@ -45,15 +46,29 @@ export default function Sidebar({
   onLessonSelect
 }: SidebarProps = {}) {
   const [internalIsCollapsed, setInternalIsCollapsed] = useState(false);
-  
   const isCollapsed = externalIsCollapsed ?? internalIsCollapsed;
   const setIsCollapsed = externalSetIsCollapsed ?? setInternalIsCollapsed;
   const [hoveredItem, setHoveredItem] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [expandedCourse, setExpandedCourse] = useState<string | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  // Get featured courses (first 3 with some progress or newest)
-  const featuredCourses = mockCourses.slice(0, 3);
+  const { user, logout } = useAuth();
+  const router = useRouter();
+
+  const handleMenuClick = (item: any, index: number) => {
+    if (item.label === 'Settings') {
+      router.push('/settings');
+    } else {
+      item.onClick?.();
+    }
+  };
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    await new Promise(resolve => setTimeout(resolve, 600));
+    logout();
+    setIsLoggingOut(false);
+  };
 
   const menuItems = [
     {
@@ -119,44 +134,42 @@ export default function Sidebar({
       color: 'from-slate-500 to-gray-600',
       notifications: 0,
       onClick: () => onNavigate('settings')
-    },
+    }
   ];
 
   const quickActions = [
     { icon: Search, label: 'Search', color: 'from-violet-500 to-purple-500' },
     { icon: Bell, label: 'Notifications', color: 'from-yellow-500 to-orange-500' },
-    { icon: Star, label: 'Favorites', color: 'from-pink-500 to-rose-500' },
+    { icon: Star, label: 'Favorites', color: 'from-pink-500 to-rose-500' }
   ];
 
   return (
-    <div className={`bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 ${isCollapsed ? 'w-14' : 'w-54'} h-screen flex flex-col transition-all duration-300 ease-in-out relative shadow-2xl border-r border-white/10`}>
-      {/* Enhanced Background Effects */}
+    <div className={`bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 ${isCollapsed ? 'w-12' : 'w-48'} h-screen flex flex-col transition-all duration-300 ease-in-out relative shadow-2xl border-r border-white/10`}>
+      {/* Background Effects */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 w-40 h-40 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 w-32 h-32 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-full blur-2xl animate-pulse animation-delay-2000"></div>
-        
-        {/* Floating Sparkles */}
-        <div className="absolute top-24 right-4 text-white/10 animate-pulse">
-          <Sparkles className="w-4 h-4" />
+        <div className="absolute top-16 left-1/2 transform -translate-x-1/2 w-32 h-32 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full blur-2xl animate-pulse"></div>
+        <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 w-24 h-24 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-full blur-xl animate-pulse animation-delay-2000"></div>
+        <div className="absolute top-20 right-3 text-white/10 animate-pulse">
+          <Sparkles className="w-3 h-3" />
         </div>
-        <div className="absolute bottom-32 left-4 text-white/10 animate-pulse animation-delay-4000">
-          <Zap className="w-3 h-3" />
+        <div className="absolute bottom-28 left-3 text-white/10 animate-pulse animation-delay-4000">
+          <Zap className="w-2 h-2" />
         </div>
       </div>
 
-      {/* Header - Clickable Logo */}
-      <div className={`p-4 border-b border-white/10 relative z-10 ${isCollapsed ? 'px-3' : ''}`}>
-        <div 
+      {/* Logo Header */}
+      <div className={`p-2 border-b border-white/10 relative z-10 ${isCollapsed ? 'px-2' : ''}`}>
+        <div
           className={`flex items-center gap-2 ${isCollapsed ? 'justify-center' : ''} cursor-pointer hover:scale-105 transition-all duration-300`}
           onClick={() => setIsCollapsed(!isCollapsed)}
           title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
         >
-          <div className="w-7 h-7 bg-gradient-to-br from-purple-500 via-pink-500 to-violet-600 rounded-lg flex items-center justify-center shadow-lg animate-pulse hover:shadow-xl hover:from-purple-600 hover:via-pink-600 hover:to-violet-700 transition-all duration-300">
-            <Sparkles className="w-4 h-4 text-white" />
+          <div className="w-6 h-6 bg-gradient-to-br from-purple-500 via-pink-500 to-violet-600 rounded-lg flex items-center justify-center shadow-lg animate-pulse">
+            <Sparkles className="w-3 h-3 text-white" />
           </div>
           {!isCollapsed && (
             <div>
-              <h1 className="text-base font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-violet-300 bg-clip-text text-transparent">
+              <h1 className="text-sm font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-violet-300 bg-clip-text text-transparent">
                 BrainStrata
               </h1>
               <p className="text-xs text-white/60 font-medium">Learning Platform</p>
@@ -165,9 +178,9 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* Search Bar */}
+      {/* Search */}
       {!isCollapsed && (
-        <div className="p-3 relative z-10">
+        <div className="p-2 relative z-10">
           <div className="relative">
             <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-white/40" />
             <input
@@ -175,7 +188,7 @@ export default function Sidebar({
               placeholder="Search courses..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-7 pr-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300 text-white placeholder-white/40 text-xs"
+              className="w-full pl-6 pr-3 py-1.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white text-xs placeholder-white/40"
             />
           </div>
         </div>
@@ -183,153 +196,133 @@ export default function Sidebar({
 
       {/* Quick Actions */}
       {!isCollapsed && (
-        <div className="px-3 mb-3 relative z-10">
-          <div className="flex items-center gap-1.5">
+        <div className="px-2 mb-2 relative z-10">
+          <div className="flex items-center gap-1">
             {quickActions.map((action, index) => (
               <button
                 key={index}
-                className={`flex-1 p-2 bg-gradient-to-r ${action.color} rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-lg group`}
+                className={`flex-1 p-1.5 bg-gradient-to-r ${action.color} rounded-lg hover:scale-105 transition-all duration-300`}
                 title={action.label}
               >
-                <action.icon className="w-3 h-3 text-white mx-auto group-hover:scale-110 transition-transform" />
+                <action.icon className="w-3 h-3 text-white mx-auto" />
               </button>
             ))}
           </div>
         </div>
       )}
 
-      {/* Current Course Roadmap */}
-      {!isCollapsed && selectedCourse && currentSection === 'lesson' && (
+      {/* Lessons or Catalog */}
+      {!isCollapsed && selectedCourse && currentSection === 'lesson' ? (
         <div className="px-3 mb-4 relative z-10">
-          <div className="space-y-2">
-            {/* Course Header */}
-            <div className="flex items-center gap-2 mb-3">
-              <div className={`w-6 h-6 bg-gradient-to-br ${selectedCourse.color} rounded-lg flex items-center justify-center shadow-lg`}>
-                <BookOpen className="w-3 h-3 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-xs font-semibold text-white truncate">
-                  {selectedCourse.title}
-                </h3>
-                <p className="text-xs text-white/60">{selectedCourse.category}</p>
-              </div>
-              <button
-                onClick={() => onNavigate?.('catalog')}
-                className="text-xs text-purple-400 hover:text-purple-300 transition-colors"
-              >
-                All
-              </button>
+          <div className="flex items-center gap-2 mb-3">
+            <div className={`w-6 h-6 bg-gradient-to-br ${selectedCourse.color} rounded-lg flex items-center justify-center shadow-lg`}>
+              <BookOpen className="w-3 h-3 text-white" />
             </div>
-
-            {/* Progress */}
-            <div className="mb-3">
-              <div className="flex items-center justify-between text-xs text-white/70 mb-1">
-                <span>Progress</span>
-                <span>{selectedCourse.lessons.filter(l => l.completed).length}/{selectedCourse.lessons.length}</span>
-              </div>
-              <div className="w-full bg-white/20 rounded-full h-1">
-                <div 
-                  className={`bg-gradient-to-r ${selectedCourse.color} h-1 rounded-full transition-all duration-500`}
-                  style={{ width: `${selectedCourse.progress || 0}%` }}
-                />
-              </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-xs font-semibold text-white truncate">
+                {selectedCourse.title}
+              </h3>
+              <p className="text-xs text-white/60">{selectedCourse.category}</p>
             </div>
+            <button
+              onClick={() => onNavigate('catalog')}
+              className="text-xs text-purple-400 hover:text-purple-300"
+            >
+              All
+            </button>
+          </div>
 
-            {/* Lessons Roadmap */}
-            <div className="space-y-1 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
-              {selectedCourse.lessons.map((lesson, index) => (
-                <button
-                  key={lesson.id}
-                  onClick={() => onLessonSelect?.(selectedCourse.id, lesson.id)}
-                  className="w-full text-left p-2 rounded bg-white/5 hover:bg-white/10 transition-colors group"
-                >
-                  <div className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded-full flex items-center justify-center ${
-                      lesson.completed 
-                        ? 'bg-green-500' 
-                        : 'bg-white/20 border border-white/30'
-                    }`}>
-                      {lesson.completed && <span className="text-white text-xs">✓</span>}
-                    </div>
-                    <span className="text-xs text-white/80 group-hover:text-white truncate">
-                      {lesson.order}. {lesson.title}
-                    </span>
-                  </div>
-                </button>
-              ))}
+          {/* Course Progress */}
+          <div className="mb-3">
+            <div className="flex justify-between text-xs text-white/70 mb-1">
+              <span>Progress</span>
+              <span>
+                {selectedCourse.lessons.filter(l => l.completed).length}/{selectedCourse.lessons.length}
+              </span>
+            </div>
+            <div className="w-full bg-white/20 rounded-full h-1">
+              <div
+                className={`bg-gradient-to-r ${selectedCourse.color} h-1 rounded-full transition-all duration-500`}
+                style={{ width: `${selectedCourse.progress || 0}%` }}
+              />
             </div>
           </div>
+
+          {/* Lessons List */}
+          <div className="space-y-1 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20">
+            {selectedCourse.lessons.map((lesson) => (
+              <button
+                key={lesson.id}
+                onClick={() => onLessonSelect?.(selectedCourse.id, lesson.id)}
+                className="w-full text-left p-2 rounded bg-white/5 hover:bg-white/10"
+              >
+                <div className="flex items-center gap-2">
+                  <div className={`w-3 h-3 rounded-full flex items-center justify-center ${
+                    lesson.completed ? 'bg-green-500' : 'bg-white/20 border border-white/30'
+                  }`}>
+                    {lesson.completed && <span className="text-white text-xs">✓</span>}
+                  </div>
+                  <span className="text-xs text-white truncate">{lesson.order}. {lesson.title}</span>
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
+      ) : (
+        !isCollapsed && (
+          <div className="px-3 mb-4 relative z-10">
+            <CompactCatalog
+              courses={mockCourses}
+              selectedCourse={selectedCourse}
+              onCourseSelect={(courseId) => {
+                const course = mockCourses.find(c => c.id === courseId);
+                if (course && course.lessons.length > 0) {
+                  onLessonSelect?.(courseId, course.lessons[0].id);
+                }
+              }}
+              onLessonSelect={onLessonSelect}
+              onViewAllClick={() => onNavigate?.('catalog')}
+            />
+          </div>
+        )
       )}
 
-      {/* Catalog Section */}
-      {!isCollapsed && (!selectedCourse || currentSection !== 'lesson') && (
-        <div className="px-3 mb-4 relative z-10">
-          <CompactCatalog 
-            courses={mockCourses}
-            onCourseSelect={(courseId) => {
-              const course = mockCourses.find(c => c.id === courseId);
-              if (course && course.lessons.length > 0) {
-                onLessonSelect?.(courseId, course.lessons[0].id);
-              }
-            }}
-            onViewAllClick={() => onNavigate?.('catalog')}
-            selectedCourse={selectedCourse}
-            onLessonSelect={onLessonSelect}
-          />
-        </div>
-      )}
-
-
-      {/* Navigation Menu */}
-      <div className="flex-1 overflow-y-auto p-3 relative z-10">
-        <div className="mb-4">
-          <h2 className={`text-xs font-bold text-white/60 mb-3 uppercase tracking-wider ${isCollapsed ? 'text-center' : ''}`}>
+      {/* Menu */}
+      <div className="flex-1 overflow-y-auto p-2 relative z-10">
+        <div className="mb-3">
+          <h2 className={`text-xs font-bold text-white/60 mb-2 uppercase tracking-wider ${isCollapsed ? 'text-center' : ''}`}>
             {isCollapsed ? 'M' : 'Main Menu'}
           </h2>
-          <nav className="space-y-1.5">
+          <nav className="space-y-1">
             {menuItems.map((item, index) => (
               <button
                 key={index}
-                onClick={item.onClick}
+                onClick={() => handleMenuClick(item, index)}
                 onMouseEnter={() => setHoveredItem(index)}
                 onMouseLeave={() => setHoveredItem(null)}
-                className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-300 group relative overflow-hidden ${
+                className={`w-full flex items-center gap-2 p-2 rounded-lg relative transition-all duration-300 group ${
                   item.active
                     ? 'bg-gradient-to-r from-purple-500/30 to-pink-500/30 text-white border border-purple-500/50 shadow-lg'
                     : 'text-white/70 hover:bg-white/10 hover:text-white'
                 } ${isCollapsed ? 'justify-center' : ''}`}
               >
-                {/* Hover effect background */}
-                <div className={`absolute inset-0 bg-gradient-to-r ${item.color} opacity-0 group-hover:opacity-20 transition-opacity duration-300 rounded-lg`} />
-                
-                {/* Icon container */}
-                <div className={`w-5 h-5 flex items-center justify-center rounded transition-all duration-300 ${
-                  item.active 
-                    ? `bg-gradient-to-r ${item.color} shadow-lg` 
-                    : 'group-hover:bg-white/20'
+                <div className={`w-4 h-4 flex items-center justify-center rounded ${
+                  item.active ? `bg-gradient-to-r ${item.color}` : 'group-hover:bg-white/20'
                 }`}>
-                  <item.icon className={`w-3 h-3 transition-all duration-300 ${
-                    item.active 
-                      ? 'text-white' 
-                      : 'text-white/70 group-hover:text-white group-hover:scale-110'
-                  }`} />
+                  <item.icon className="w-3 h-3" />
                 </div>
-                
                 {!isCollapsed && (
                   <>
-                    <span className="flex-1 text-left font-medium text-sm">{item.label}</span>
+                    <span className="flex-1 text-sm">{item.label}</span>
                     {item.notifications > 0 && (
-                      <span className={`w-6 h-6 bg-gradient-to-r ${item.color} rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg animate-pulse`}>
+                      <span className={`w-5 h-5 bg-gradient-to-r ${item.color} rounded-full flex items-center justify-center text-xs text-white shadow-lg`}>
                         {item.notifications > 9 ? '9+' : item.notifications}
                       </span>
                     )}
                   </>
                 )}
-
-                {/* Tooltip for collapsed state */}
                 {isCollapsed && hoveredItem === index && (
-                  <div className="absolute left-16 bg-gray-900 text-white text-sm px-3 py-2 rounded-lg shadow-xl z-50 whitespace-nowrap border border-white/20">
+                  <div className="absolute left-14 bg-gray-900 text-white text-sm px-2 py-1 rounded-lg shadow-xl z-50">
                     {item.label}
                     {item.notifications > 0 && (
                       <span className="ml-2 text-purple-400">({item.notifications})</span>
@@ -342,47 +335,78 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* Enhanced User Profile */}
-      <div className={`p-4 border-t border-white/10 bg-gradient-to-r from-purple-500/10 to-pink-500/10 backdrop-blur-sm relative z-10 ${isCollapsed ? 'px-2' : ''}`}>
+      {/* User Profile & Logout */}
+      <div className={`p-2 border-t border-white/10 bg-gradient-to-r from-purple-500/10 to-pink-500/10 backdrop-blur-sm relative z-10 ${isCollapsed ? 'px-2' : ''}`}>
         {!isCollapsed ? (
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold text-lg">JD</span>
-            </div>
-            <div className="flex-1">
-              <h3 className="text-white font-semibold text-sm">John Doe</h3>
-              <p className="text-white/60 text-xs">Premium Member</p>
-            </div>
-            <div className="flex flex-col items-center">
-              <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-full flex items-center justify-center shadow-sm">
-                <Target className="w-4 h-4 text-white" />
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg">
+                <span className="text-white font-bold text-sm">
+                  {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                </span>
               </div>
-              <span className="text-xs text-white/60 mt-1">Level 12</span>
+              <div className="flex-1">
+                <h3 className="text-white font-semibold text-sm">{user?.name || 'User'}</h3>
+                <p className="text-white/60 text-xs">Premium Member</p>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="w-6 h-6 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-full flex items-center justify-center">
+                  <Target className="w-3 h-3 text-white" />
+                </div>
+                <span className="text-xs text-white/60 mt-1">Level 12</span>
+              </div>
             </div>
+            <button
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="w-full flex items-center gap-2 p-2 rounded-xl bg-gradient-to-r from-red-500/20 to-pink-500/20 border border-red-500/30 text-red-300 hover:border-red-400/50 hover:text-red-200"
+            >
+              <div className="w-4 h-4 flex items-center justify-center bg-red-500/20">
+                {isLoggingOut ? (
+                  <div className="animate-spin h-3 w-3 border-b-2 border-red-300 rounded-full" />
+                ) : (
+                  <LogOut className="w-3 h-3" />
+                )}
+              </div>
+              <span className="flex-1 text-sm">{isLoggingOut ? 'Signing out...' : 'Sign Out'}</span>
+              <Power className="w-3 h-3 opacity-60" />
+            </button>
           </div>
         ) : (
-          <div className="flex justify-center">
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold">JD</span>
+          <div className="space-y-2">
+            <div className="flex justify-center">
+              <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg">
+                <span className="text-white font-bold text-sm">
+                  {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                </span>
+              </div>
             </div>
+            <button
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="w-full flex items-center justify-center p-1.5 rounded-xl bg-gradient-to-r from-red-500/20 to-pink-500/20 border border-red-500/30 text-red-300 hover:border-red-400/50 hover:text-red-200"
+              title="Sign Out"
+            >
+              {isLoggingOut ? (
+                <div className="animate-spin h-3 w-3 border-b-2 border-red-300 rounded-full" />
+              ) : (
+                <LogOut className="w-3 h-3" />
+              )}
+            </button>
           </div>
         )}
       </div>
 
-      {/* Progress Indicator */}
-      {!isCollapsed && (
-        <div className="p-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 relative z-10">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-white/70 text-xs font-medium">Weekly Goal</span>
-            <span className="text-white/70 text-xs font-medium">7/10 hrs</span>
-          </div>
-          <div className="w-full bg-white/20 rounded-full h-2">
-            <div className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-500 shadow-sm" style={{ width: '70%' }}>
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shine"></div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Expand/Collapse Control */}
+      <div className="absolute top-1/2 -right-3 transform -translate-y-1/2 z-20">
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="w-6 h-6 bg-slate-800 border border-white/10 rounded-full flex items-center justify-center shadow-md hover:shadow-lg"
+          title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+        >
+          {isCollapsed ? <ChevronRight className="w-3 h-3 text-white" /> : <ChevronLeft className="w-3 h-3 text-white" />}
+        </button>
+      </div>
     </div>
   );
 }

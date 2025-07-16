@@ -1,40 +1,61 @@
 'use client';
-import React from 'react';
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Menu, X, Sparkles, Star, Zap, LogOut, Settings } from 'lucide-react';
+
 import Sidebar from '@/components/Sidebar';
+import Chatbot from '@/components/Chatbot';
+import Dashboard from '@/components/Dashboard';
 import GeneratedContent from '@/components/GeneratedContent';
 import QuizGenerator from '@/components/QuizGenerator';
-import Chatbot from '@/components/Chatbot';
 import CourseList from '@/components/CourseList';
 import MainCatalogView from '@/components/MainCatalogView';
 import LessonView from '@/components/LessonView';
-import { Menu, X, Sparkles, Star, Zap } from 'lucide-react';
+
 import type { GeneratedSection, Course, Lesson } from '@/types/api';
 import { PromptChain } from '@/components/promptchaining';
+import { useAuth } from '@/lib/stores/authStore';
+import { useRouter } from 'next/navigation';
 import { mockCourses, getCourseById, getLessonById } from '@/data/courses';
-
 
 export default function Home() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isChatbotCollapsed, setIsChatbotCollapsed] = useState(false);
+
+  // Auth
+  const { user, logout, isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
+
+  // AI Generation State
   const [generatedSections, setGeneratedSections] = useState<GeneratedSection[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentPromptChain, setCurrentPromptChain] = useState<PromptChain | undefined>(undefined);
   const [currentPrompt, setCurrentPrompt] = useState<string>('');
-  
-  // Navigation state management
+
+  // Navigation
   const [currentSection, setCurrentSection] = useState<string>('dashboard');
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
-  
+
+  // Auth Redirect
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push('/login');
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  const handleLogout = () => {
+    logout();
+    router.push('/login');
+  };
+
   const handleNewGeneratedContent = (sections: GeneratedSection[]) => {
     setGeneratedSections(sections);
   };
 
-  const handleGeneratingStateChange = (generating: boolean) => {
-    setIsGenerating(generating);
+  const handleGeneratingStateChange = (isGen: boolean) => {
+    setIsGenerating(isGen);
   };
 
   const handleChainUpdate = (chain: PromptChain) => {
@@ -45,7 +66,6 @@ export default function Home() {
     setCurrentPrompt(prompt);
   };
 
-  // Navigation handlers
   const handleNavigate = (section: string) => {
     setCurrentSection(section);
     if (section !== 'lesson') {
@@ -58,7 +78,6 @@ export default function Home() {
     const course = getCourseById(courseId);
     if (course) {
       setSelectedCourse(course);
-      // Navigate to first lesson
       const firstLesson = course.lessons.find(lesson => lesson.order === 1);
       if (firstLesson) {
         setSelectedLesson(firstLesson);
@@ -79,27 +98,19 @@ export default function Home() {
 
   const handleNextLesson = () => {
     if (!selectedCourse || !selectedLesson) return;
-    
-    const currentIndex = selectedCourse.lessons.findIndex(l => l.id === selectedLesson.id);
-    const nextLesson = selectedCourse.lessons[currentIndex + 1];
-    if (nextLesson) {
-      setSelectedLesson(nextLesson);
-    }
+    const index = selectedCourse.lessons.findIndex(l => l.id === selectedLesson.id);
+    const next = selectedCourse.lessons[index + 1];
+    if (next) setSelectedLesson(next);
   };
 
   const handlePreviousLesson = () => {
     if (!selectedCourse || !selectedLesson) return;
-    
-    const currentIndex = selectedCourse.lessons.findIndex(l => l.id === selectedLesson.id);
-    const previousLesson = selectedCourse.lessons[currentIndex - 1];
-    if (previousLesson) {
-      setSelectedLesson(previousLesson);
-    }
+    const index = selectedCourse.lessons.findIndex(l => l.id === selectedLesson.id);
+    const prev = selectedCourse.lessons[index - 1];
+    if (prev) setSelectedLesson(prev);
   };
 
   const handleLessonComplete = (lessonId: string) => {
-    // Update lesson completion status
-    // This would typically make an API call
     console.log('Lesson completed:', lessonId);
   };
 
@@ -108,26 +119,17 @@ export default function Home() {
     setSelectedLesson(null);
   };
 
-  // Function to get combined content from all sections
   const getCombinedContent = () => {
     return generatedSections.map(section => section.content).join('\n\n');
   };
 
-  // Render main content based on current section
   const renderMainContent = () => {
     switch (currentSection) {
       case 'catalog':
-        return (
-          <MainCatalogView 
-            courses={mockCourses}
-            onCourseSelect={handleCourseSelect}
-          />
-        );
+        return <MainCatalogView courses={mockCourses} onCourseSelect={handleCourseSelect} />;
       case 'lesson':
-        if (!selectedCourse || !selectedLesson) {
-          return <div>Loading...</div>;
-        }
-        const currentLessonIndex = selectedCourse.lessons.findIndex(l => l.id === selectedLesson.id);
+        if (!selectedCourse || !selectedLesson) return <div>Loading...</div>;
+        const currentIndex = selectedCourse.lessons.findIndex(l => l.id === selectedLesson.id);
         return (
           <LessonView
             course={selectedCourse}
@@ -135,69 +137,63 @@ export default function Home() {
             onNextLesson={handleNextLesson}
             onPreviousLesson={handlePreviousLesson}
             onBackToCatalog={handleBackToCatalog}
-            hasNext={currentLessonIndex < selectedCourse.lessons.length - 1}
-            hasPrevious={currentLessonIndex > 0}
+            hasNext={currentIndex < selectedCourse.lessons.length - 1}
+            hasPrevious={currentIndex > 0}
             onLessonComplete={handleLessonComplete}
           />
         );
+      case 'dashboard':
       default:
         return (
           <>
-            <GeneratedContent 
-              sections={generatedSections} 
+            <GeneratedContent
+              sections={generatedSections}
               isGenerating={isGenerating}
               promptChain={currentPromptChain}
             />
-            
-            {/* Quiz Generator - shown below generated content */}
             {generatedSections.length > 0 && (
-              <QuizGenerator 
-                prompt={currentPrompt || generatedSections[0]?.title || "Generated Content"}
+              <QuizGenerator
+                prompt={currentPrompt || generatedSections[0]?.title || 'Generated Content'}
                 generatedContent={getCombinedContent()}
                 isVisible={!isGenerating}
               />
             )}
+            <Dashboard />
           </>
         );
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-400 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-white mb-2">Loading BrainStrata...</h2>
+          <p className="text-white/60">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) return null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex relative overflow-hidden">
-      {/* Enhanced Animated Background */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-purple-500 via-pink-500 to-violet-600 rounded-full mix-blend-multiply filter blur-2xl opacity-60 animate-blob"></div>
-        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-br from-blue-500 via-cyan-500 to-teal-600 rounded-full mix-blend-multiply filter blur-2xl opacity-60 animate-blob animation-delay-2000"></div>
-        <div className="absolute top-40 left-40 w-80 h-80 bg-gradient-to-br from-pink-500 via-rose-500 to-orange-500 rounded-full mix-blend-multiply filter blur-2xl opacity-50 animate-blob animation-delay-4000"></div>
-        <div className="absolute bottom-20 right-20 w-64 h-64 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-40 animate-blob animation-delay-6000"></div>
-        
-        {/* Floating Stars */}
-        <div className="absolute top-1/4 left-1/4 text-white/20 animate-pulse">
-          <Star className="w-4 h-4" />
-        </div>
-        <div className="absolute top-1/3 right-1/3 text-white/20 animate-pulse animation-delay-2000">
-          <Sparkles className="w-3 h-3" />
-        </div>
-        <div className="absolute bottom-1/4 left-1/3 text-white/20 animate-pulse animation-delay-4000">
-          <Zap className="w-4 h-4" />
-        </div>
-      </div>
+      {/* Background */}
+      {/* ...Background Effects... */}
 
-      {/* Enhanced Mobile Menu Overlay */}
+      {/* Mobile Menu */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-40 lg:hidden">
-          <div className="fixed inset-y-0 left-0 w-54 bg-gradient-to-b from-white/95 via-white/90 to-white/95 backdrop-blur-2xl z-50 border-r border-white/30 shadow-2xl">
-            <div className="flex items-center justify-between p-4 border-b border-white/30 bg-gradient-to-r from-purple-50 to-pink-50">
-              <h2 className="text-base font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-violet-600 bg-clip-text text-transparent">Navigation</h2>
-              <button
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="p-1.5 hover:bg-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm hover:scale-110 hover:rotate-90"
-              >
+          <div className="fixed inset-y-0 left-0 w-54 bg-white backdrop-blur-2xl z-50 border-r border-white/30 shadow-2xl">
+            <div className="flex items-center justify-between p-4 border-b border-white/30">
+              <h2 className="text-base font-bold text-black">Navigation</h2>
+              <button onClick={() => setIsMobileMenuOpen(false)} className="p-1.5 hover:bg-white/30 rounded-lg">
                 <X className="w-4 h-4 text-gray-700" />
               </button>
             </div>
-            <Sidebar 
+            <Sidebar
               onNavigate={handleNavigate}
               currentSection={currentSection}
               selectedCourse={selectedCourse}
@@ -209,48 +205,36 @@ export default function Home() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col relative z-10 min-h-screen">
-        {/* Enhanced Mobile Header */}
-        <div className="lg:hidden flex items-center justify-between p-3 bg-gradient-to-r from-white/10 via-white/20 to-white/10 backdrop-blur-2xl border-b border-white/30 shadow-lg">
-          <button
-            onClick={() => setIsMobileMenuOpen(true)}
-            className="p-2 hover:bg-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm hover:scale-110 hover:rotate-12 group"
-          >
-            <Menu className="w-4 h-4 text-white group-hover:text-purple-200" />
+        {/* Mobile Header */}
+        <div className="lg:hidden flex items-center justify-between p-3 border-b border-white/30 shadow-lg">
+          <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 rounded-lg">
+            <Menu className="w-4 h-4 text-white" />
           </button>
+          <h1 className="text-base font-bold text-white">BrainStrata</h1>
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 bg-gradient-to-br from-purple-500 via-pink-500 to-violet-600 rounded-lg flex items-center justify-center shadow-lg animate-pulse hover:animate-spin">
-              <Sparkles className="w-3 h-3 text-white" />
-            </div>
-            <h1 className="text-base font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-violet-300 bg-clip-text text-transparent">
-              BrainStrata
-            </h1>
+            <button onClick={() => setIsChatOpen(!isChatOpen)} className="p-2 rounded-lg">
+              <div className="w-4 h-4 bg-green-400 rounded-full animate-pulse" />
+            </button>
+            <button onClick={() => router.push('/settings')}>
+              <Settings className="w-4 h-4 text-white" />
+            </button>
+            <button onClick={handleLogout} className="text-white text-sm">Logout</button>
           </div>
-          <button
-            onClick={() => setIsChatOpen(!isChatOpen)}
-            className="p-2 hover:bg-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm hover:scale-110 group"
-          >
-            <div className="w-4 h-4 bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 rounded-full animate-pulse shadow-lg group-hover:shadow-emerald-500/50" />
-          </button>
         </div>
 
-        {/* Generated Content - Perfectly centered between sidebars */}
+        {/* Content Area */}
         <div className="flex-1 h-full lg:flex">
-          {/* Left spacer - matches sidebar width */}
-          <div className={`hidden lg:block flex-shrink-0 transition-all duration-300 ${isSidebarCollapsed ? 'w-14' : 'w-54'}`}></div>
-          
-          {/* Main content area - takes remaining space */}
+          <div className={`hidden lg:block ${isSidebarCollapsed ? 'w-12' : 'w-48'}`} />
           <div className="flex-1 h-full overflow-auto">
             {renderMainContent()}
           </div>
-          
-          {/* Right spacer - matches chatbot width */}
-          <div className={`hidden lg:block flex-shrink-0 transition-all duration-300 ${isChatbotCollapsed ? 'w-14' : 'w-64'}`}></div>
+          <div className={`hidden lg:block ${isChatbotCollapsed ? 'w-12' : 'w-56'}`} />
         </div>
       </div>
 
-      {/* Enhanced Desktop Sidebar - Fixed Position */}
+      {/* Sidebar */}
       <div className="hidden lg:block fixed top-0 left-0 z-20">
-        <Sidebar 
+        <Sidebar
           isCollapsed={isSidebarCollapsed}
           setIsCollapsed={setIsSidebarCollapsed}
           onNavigate={handleNavigate}
@@ -260,40 +244,33 @@ export default function Home() {
         />
       </div>
 
-      {/* Enhanced Desktop Chatbot - Fixed Position */}
+      {/* Chatbot */}
       <div className="hidden lg:block fixed top-0 right-0 z-20">
-        <Chatbot 
-        onNewGeneratedContent={handleNewGeneratedContent}
-        onGeneratingStateChange={handleGeneratingStateChange}
-        onChainUpdate={handleChainUpdate}
-        onPromptUpdate={handlePromptUpdate}
+        <Chatbot
           isCollapsed={isChatbotCollapsed}
           setIsCollapsed={setIsChatbotCollapsed}
+          onNewGeneratedContent={handleNewGeneratedContent}
+          onGeneratingStateChange={handleGeneratingStateChange}
+          onChainUpdate={handleChainUpdate}
+          onPromptUpdate={handlePromptUpdate}
         />
       </div>
 
-      {/* Enhanced Mobile Chatbot */}
+      {/* Mobile Chatbot */}
       {isChatOpen && (
-        <div className="lg:hidden fixed inset-0 bg-gradient-to-br from-white/95 via-white/90 to-white/95 backdrop-blur-2xl z-40">
-          <div className="flex items-center justify-between p-4 border-b border-white/30 bg-gradient-to-r from-blue-50 to-purple-50">
-            <h2 className="text-base font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-              AI Assistant
-            </h2>
-            <button
-              onClick={() => setIsChatOpen(false)}
-              className="p-1.5 hover:bg-white/30 rounded-lg transition-all duration-300 hover:scale-110 hover:rotate-90"
-            >
+        <div className="lg:hidden fixed inset-0 bg-white backdrop-blur-2xl z-40">
+          <div className="flex items-center justify-between p-4 border-b border-white/30">
+            <h2 className="text-base font-bold text-black">AI Assistant</h2>
+            <button onClick={() => setIsChatOpen(false)} className="p-1.5 rounded-lg">
               <X className="w-4 h-4 text-gray-700" />
             </button>
           </div>
-          <div className="h-full">
-            <Chatbot 
-              onNewGeneratedContent={handleNewGeneratedContent}
-              onGeneratingStateChange={handleGeneratingStateChange}
-              onChainUpdate={handleChainUpdate}
-              onPromptUpdate={handlePromptUpdate}
-            />
-          </div>
+          <Chatbot
+            onNewGeneratedContent={handleNewGeneratedContent}
+            onGeneratingStateChange={handleGeneratingStateChange}
+            onChainUpdate={handleChainUpdate}
+            onPromptUpdate={handlePromptUpdate}
+          />
         </div>
       )}
     </div>
