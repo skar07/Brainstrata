@@ -4,6 +4,7 @@ import { json, urlencoded } from "express";
 import cookieParser from "cookie-parser";
 import authRoutes from "./routes/auth";
 import userRoutes from "./routes/users";
+import contextRoutes from "./routes/context";
 import errorHandler from "./middleware/errorHandler";
 
 const app = express();
@@ -21,6 +22,7 @@ app.get("/", (req, res) => {
 // Registration and logout are still handled here, but login is via OAuth2.0 provider
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/context", contextRoutes);
 
 app.use(errorHandler);
 
