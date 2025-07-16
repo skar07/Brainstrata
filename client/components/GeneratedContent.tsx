@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import React from 'react';
 import VisualBlock from './VisualBlock';
-import { ChevronRight, BookOpen, Lightbulb, CheckCircle, FileText, Brain, Search, Microscope, Loader2, Link, TrendingUp, MessageSquare, Image } from 'lucide-react';
+import { ChevronRight, BookOpen, Lightbulb, CheckCircle, FileText, Brain, Search, Microscope, Loader2, Link, TrendingUp, MessageSquare, Image, MessageCircle } from 'lucide-react';
 import type { GeneratedSection } from '../types/api';
 import { PromptChain } from './promptchaining';
-
+import Lottie from 'lottie-react';
+import animationData from '../assets/Robot_says_hello.json';
+import ContentFormatter from './ContentFormatter';
 interface GeneratedContentProps {
   sections?: GeneratedSection[];
   isGenerating?: boolean;
@@ -20,60 +22,61 @@ export default function GeneratedContent({
 }: GeneratedContentProps) {
   const [currentSection, setCurrentSection] = useState(0);
   const [showChainHistory, setShowChainHistory] = useState(false);
-
-  // Default static sections for when no dynamic content is provided
-  const defaultSections = [
-    {
-      title: "Introduction to Photosynthesis",
-      content: "Photosynthesis is the biological process by which plants, algae, and certain bacteria convert light energy into chemical energy. This fundamental process sustains virtually all life on Earth by producing oxygen and glucose.",
-      icon: BookOpen,
-      color: "from-emerald-400 via-teal-500 to-cyan-600",
-      shadowColor: "shadow-emerald-500/25",
-      difficulty: "Beginner",
-      duration: "5 min",
-    },
-    {
-      title: "The Light-Dependent Reactions",
-      content: "The first stage of photosynthesis occurs in the thylakoid membranes of chloroplasts. Here, chlorophyll absorbs light energy and converts it into chemical energy in the form of ATP and NADPH.",
-      icon: Lightbulb,
-      color: "from-amber-400 via-orange-500 to-red-500",
-      shadowColor: "shadow-amber-500/25",
-      difficulty: "Intermediate",
-      duration: "8 min",
-    },
-    {
-      title: "The Calvin Cycle",
-      content: "The second stage takes place in the stroma, where CO₂ is fixed into glucose using the ATP and NADPH produced in the light reactions. This cycle is also known as the light-independent reactions.",
-      icon: CheckCircle,
-      color: "from-purple-400 via-violet-500 to-indigo-600",
-      shadowColor: "shadow-purple-500/25",
-      difficulty: "Advanced",
-      duration: "12 min",
-    },
-  ];
+  const [imageLoadingStates, setImageLoadingStates] = useState<{ [key: string]: boolean }>({});
 
   // Icons for different types of responses
   const responseIcons = [FileText, Brain, Search, Microscope];
 
   // Function to get icon for a section
-  const getIconForSection = (index: number, isDynamic: boolean) => {
-    if (isDynamic) {
-      return responseIcons[index % responseIcons.length];
-    }
-    return defaultSections[index]?.icon || BookOpen;
+  const getIconForSection = (index: number) => {
+    return responseIcons[index % responseIcons.length];
   };
 
   const isDynamicContent = sections.length > 0;
-  const displaySections = isDynamicContent ? sections : defaultSections;
   const hasChainedContent = sections.some(section => section.isChained);
   const maxChainDepth = Math.max(...sections.map(section => section.chainDepth || 0), 0);
 
   // Get chain history if available
   const chainHistory = promptChain?.getChainHistory() || [];
 
+  // Function to handle image loading state
+  const handleImageLoad = (sectionId: string) => {
+    setImageLoadingStates(prev => ({
+      ...prev,
+      [sectionId]: false
+    }));
+  };
+
+  // Function to handle image error
+  const handleImageError = (sectionId: string) => {
+    setImageLoadingStates(prev => ({
+      ...prev,
+      [sectionId]: false
+    }));
+  };
+
+  // Function to check if image is loading
+  const isImageLoading = (sectionId: string) => {
+    return imageLoadingStates[sectionId] !== false;
+  };
+
+  // Effect to set initial loading states when sections are added
+  React.useEffect(() => {
+    const newLoadingStates: { [key: string]: boolean } = {};
+    sections.forEach((section, index) => {
+      if (section.imageUrl) {
+        newLoadingStates[`section-${index}`] = true;
+      }
+    });
+    setImageLoadingStates(prev => ({
+      ...prev,
+      ...newLoadingStates
+    }));
+  }, [sections]);
+
   // Function to handle section progression
   const handleNextSection = () => {
-    if (currentSection < displaySections.length - 1) {
+    if (currentSection < sections.length - 1) {
       setCurrentSection(prev => prev + 1);
     }
   };
@@ -87,7 +90,7 @@ export default function GeneratedContent({
 
   // Function to jump to specific section
   const jumpToSection = (index: number) => {
-    if (index >= 0 && index < displaySections.length) {
+    if (index >= 0 && index < sections.length) {
       setCurrentSection(index);
     }
   };
@@ -97,47 +100,24 @@ export default function GeneratedContent({
     setCurrentSection(0);
   };
 
-  // Function to check if section is accessible
-  const isSectionAccessible = (index: number) => {
-    if (isDynamicContent) {
-      return true; // All dynamic content is immediately accessible
-    }
-    return index <= currentSection; // Static content follows progression
-  };
-
   // Function to get section status
   const getSectionStatus = (index: number) => {
-    if (isDynamicContent) {
-      return 'completed';
-    }
-    if (index < currentSection) {
-      return 'completed';
-    } else if (index === currentSection) {
-      return 'current';
-    } else {
-      return 'locked';
-    }
+    return 'completed';
   };
 
   // Function to calculate progress percentage
   const getProgressPercentage = () => {
-    if (isDynamicContent) {
-      return 100; // Dynamic content is always 100% complete
-    }
-    return Math.round(((currentSection + 1) / displaySections.length) * 100);
+    return sections.length > 0 ? 100 : 0;
   };
 
   // Function to get current section data
   const getCurrentSectionData = () => {
-    return displaySections[currentSection];
+    return sections[currentSection];
   };
 
   // Function to check if lesson is complete
   const isLessonComplete = () => {
-    if (isDynamicContent) {
-      return sections.length > 0;
-    }
-    return currentSection === displaySections.length - 1;
+    return sections.length > 0;
   };
 
   // Function to handle chain history toggle
@@ -279,243 +259,342 @@ export default function GeneratedContent({
     }
     
     return {
-      totalSections: defaultSections.length,
-      completedSections: currentSection + 1,
-      remainingSections: defaultSections.length - (currentSection + 1),
-      completionStatus: isLessonComplete() ? 'complete' : 'in-progress'
+      totalSections: 0,
+      completedSections: 0,
+      remainingSections: 0,
+      completionStatus: 'empty'
     };
   };
 
-  return (
-    <div className="h-full w-full bg-gray-50 overflow-y-auto">
-      <div className="max-w-4xl mx-auto p-8 pb-16">
-        {/* Header */}
-        <div className="mb-8">
-          <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-4">
-            <span>AI Learning</span>
-            <ChevronRight className="w-4 h-4" />
-            <span>Generated Content</span>
-            <ChevronRight className="w-4 h-4" />
-            <span className="text-blue-600 font-medium">
-              {isDynamicContent ? "AI Responses" : "Photosynthesis"}
-            </span>
-          </nav>
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            {isDynamicContent ? "AI Generated Learning Content" : "Understanding Photosynthesis"}
-          </h1>
-          <p className="text-xl text-gray-600">
-            {isDynamicContent 
-              ? "Explore different perspectives and explanations generated by AI"
-              : "Explore how plants convert sunlight into energy through this interactive lesson."
-            }
-          </p>
+  // If no content is generated yet, show the default prompt message
+  if (!isDynamicContent && !isGenerating) {
+    return (
+      <div className="h-full w-full bg-gray-50">
+        {/* Full-width responsive header */}
+        <div className="w-full bg-gradient-to-r from-blue-500 via-purple-600 to-indigo-700 shadow-lg">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16 md:h-20">
+              <div className="flex items-center space-x-4">
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                  <MessageCircle className="w-6 h-6 md:w-7 md:h-7 text-white" />
+                </div>
+                <div className="hidden sm:block">
+                  <h1 className="text-lg md:text-xl font-bold text-white">AI Learning Assistant</h1>
+                  <p className="text-sm text-blue-100">Ready to generate content</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-4">
+               
+               
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Loading State */}
-        {isGenerating && (
-          <div className="mb-8 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center gap-4">
-              <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Generating Content...</h3>
-                <p className="text-gray-600">
-                  Creating multiple AI responses for your query. Responses will appear as they're ready.
+        {/* Main content area */}
+        <div className="flex items-center justify-center flex-1 p-8">
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+              <div className="flex items-center gap-8">
+                {/* Lottie Animation */}
+                <div className="flex-shrink-0">
+                  <div className="w-32 h-32 md:w-40 md:h-40">
+                    <Lottie 
+                      animationData={animationData} 
+                      loop={true} 
+                      style={{ width: '100%', height: '100%' }}
+                    />
+                  </div>
+                </div>
+                
+                {/* Content Text */}
+                <div className="flex-1 text-left">
+                  <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
+                    Ready to Generate Content
+                  </h2>
+                  <p className="text-gray-600 mb-6 text-lg">
+                    Write a prompt in the chatbot and the generated content will appear here.
+                  </p>
+                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                    <p className="text-sm text-blue-700">
+                      💡 <strong>Tip:</strong> Try asking questions about any topic, and AI will create interactive learning content for you.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full w-full bg-gray-50">
+      {/* Full-width responsive header */}
+      <div className="w-full bg-gradient-to-r from-blue-500 via-purple-600 to-indigo-700 shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16 md:h-20">
+            <div className="flex items-center space-x-4">
+              <div className="w-10 h-10 md:w-12 md:h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                <MessageCircle className="w-6 h-6 md:w-7 md:h-7 text-white" />
+              </div>
+              <div className="hidden sm:block">
+                <h1 className="text-lg md:text-xl font-bold text-white">AI Learning Assistant</h1>
+                <p className="text-sm text-blue-100">
+                  {isGenerating ? 'Generating content...' : `${sections.length} responses generated`}
                 </p>
               </div>
             </div>
-            
-            {/* Streaming Progress Indicator */}
-            <div className="mt-4">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="flex space-x-1">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="w-2 h-2 bg-blue-200 rounded-full animate-pulse"></div>
-                  ))}
-                </div>
-                <span className="text-sm text-gray-600">Generating responses...</span>
+            <div className="flex items-center space-x-4">
+              <div className="hidden md:block w-16 h-16">
+                <Lottie 
+                  animationData={animationData} 
+                  loop={true} 
+                  style={{ width: '100%', height: '100%' }}
+                />
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-1">
-                <div className="h-1 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full animate-pulse" style={{ width: '25%' }}></div>
+              <div className="md:hidden w-12 h-12">
+                <Lottie 
+                  animationData={animationData} 
+                  loop={true} 
+                  style={{ width: '100%', height: '100%' }}
+                />
               </div>
             </div>
           </div>
-        )}
+        </div>
+      </div>
 
-        {/* Progress Bar */}
-        {displaySections.length > 0 && (
+      {/* Main content area */}
+      <div className="overflow-y-auto flex-1">
+        <div className="max-w-4xl mx-auto p-8 pb-16">
+          {/* Header */}
           <div className="mb-8">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-600">
-                {isDynamicContent ? "Generated Responses" : "Progress"}
+            <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-4">
+              <span>AI Learning</span>
+              <ChevronRight className="w-4 h-4" />
+              <span>Generated Content</span>
+              <ChevronRight className="w-4 h-4" />
+              <span className="text-blue-600 font-medium">
+                AI Responses
               </span>
-              <span className="text-sm text-gray-600">
-                {isDynamicContent 
-                  ? `${displaySections.length} responses completed` 
-                  : `${getProgressPercentage()}% complete`
-                }
-              </span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="h-2 rounded-full transition-all duration-300 bg-gradient-to-r from-blue-500 to-purple-600"
-                style={{ 
-                  width: `${isDynamicContent 
-                    ? 100 
-                    : getProgressPercentage()
-                  }%` 
-                }}
-              />
+            </nav>
+            <div className="flex items-center gap-6">
+              {/* Lottie Animation */}
+              <div className="flex-shrink-0">
+                <div className="w-20 h-20 md:w-24 md:h-24">
+                  <Lottie 
+                    animationData={animationData} 
+                    loop={true} 
+                    style={{ width: '100%', height: '100%' }}
+                  />
+                </div>
+              </div>
+              
+              {/* Content Text */}
+              <div className="flex-1">
+                <h1 className="text-4xl font-bold text-gray-900 mb-4">
+                  AI Generated Learning Content
+                </h1>
+                <p className="text-xl text-gray-600">
+                  Explore different perspectives and explanations generated by AI
+                </p>
+              </div>
             </div>
           </div>
-        )}
 
-        {/* Content Sections */}
-        <div className="space-y-8">
-          {displaySections.map((section, index) => (
-            <div
-              key={index}
-              className={`transition-all duration-700 animate-streamIn ${
-                isDynamicContent ? 'opacity-100' : (isSectionAccessible(index) ? 'opacity-100' : 'opacity-50')
-              }`}
-              style={{ animationDelay: `${index * 0.1}s` }}
-            >
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                    {(() => {
-                      const IconComponent = getIconForSection(index, isDynamicContent);
-                      return <IconComponent className="w-5 h-5 text-white" />;
-                    })()}
+          {/* Loading State */}
+          {isGenerating && (
+            <div className="mb-8 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center gap-4">
+                <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Generating Content...</h3>
+                  <p className="text-gray-600">
+                    Creating multiple AI responses for your query. Responses will appear as they're ready.
+                  </p>
+                </div>
+              </div>
+              
+              {/* Streaming Progress Indicator */}
+              <div className="mt-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex space-x-1">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div key={i} className="w-2 h-2 bg-blue-200 rounded-full animate-pulse"></div>
+                    ))}
                   </div>
-                  <div className="flex-1">
-                    <h2 className="text-2xl font-bold text-gray-900">{section.title}</h2>
+                  <span className="text-sm text-gray-600">Generating responses...</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-1">
+                  <div className="h-1 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full animate-pulse" style={{ width: '25%' }}></div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Progress Bar */}
+          {sections.length > 0 && (
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-600">
+                  Generated Responses
+                </span>
+                <span className="text-sm text-gray-600">
+                  {sections.length} responses completed
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="h-2 rounded-full transition-all duration-300 bg-gradient-to-r from-blue-500 to-purple-600"
+                  style={{ width: '100%' }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Content Sections */}
+          <div className="space-y-8">
+            {sections.map((section, index) => (
+              <div
+                key={index}
+                className="transition-all duration-700 animate-streamIn opacity-100"
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                      {(() => {
+                        const IconComponent = getIconForSection(index);
+                        return <IconComponent className="w-5 h-5 text-white" />;
+                      })()}
+                    </div>
+                    <div className="flex-1">
+                      <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900 leading-tight mb-1">{section.title}</h2>
+                    </div>
+                  </div>
+                  {/* Professional Content Formatting */}
+                  <div className="mb-6">
+                    <ContentFormatter 
+                      content={
+                        typeof section.content === 'string' 
+                          ? section.content 
+                          : Array.isArray(section.content) 
+                            ? (section.content as string[]).join('\n') 
+                            : ''
+                      } 
+                      className="text-gray-800 leading-relaxed"
+                    />
+                  </div>
+                  
+                  {/* Display generated image if available */}
+                  {section.imageUrl && (
+                    <div className="mb-6 animate-imageFadeIn">
+                      <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-4 border border-purple-200">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Image className="w-4 h-4 text-purple-500" />
+                          <span className="text-sm font-medium text-purple-700">AI Generated Image   <button
+                              onClick={() => window.open(section.imageUrl, '_blank')}
+                              className="px-3 py-1 bg-white/90 text-gray-800 rounded-lg text-sm font-medium hover:bg-white transition-all duration-200"
+                            >
+                              View Full Size
+                            </button></span>
+                        </div>
+                        <div className="relative group">
+                          <img 
+                            src={section.imageUrl} 
+                            alt={`AI generated image for: ${section.title}`}
+                            className="w-full h-auto rounded-lg shadow-lg border border-purple-200 hover:shadow-xl transition-all duration-300"
+                            onLoad={() => handleImageLoad(`section-${index}`)}
+                            onError={() => handleImageError(`section-${index}`)}
+                            style={{ 
+                              opacity: isImageLoading(`section-${index}`) ? 0 : 1, 
+                              transition: 'opacity 0.3s ease-in-out' 
+                            }}
+                          />
+                          {/* Loading skeleton - only show when image is loading */}
+                          {isImageLoading(`section-${index}`) && (
+                            <div className="absolute inset-0 bg-gray-200 rounded-lg animate-pulse flex items-center justify-center">
+                              <div className="flex flex-col items-center gap-2">
+                                <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
+                                <span className="text-sm text-gray-500">Loading image...</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {/* Loading Placeholder Sections */}
+            {isGenerating && getLoadingSections().map((loadingSection, index) => (
+              <div
+                key={loadingSection.id}
+                className="transition-all duration-700 opacity-100 animate-streamPulse"
+                style={{ animationDelay: `${index * 0.2}s` }}
+              >
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center">
+                      <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h2 className="text-2xl font-bold text-gray-300">{loadingSection.title}</h2>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                        <div className="w-3 h-3 bg-gray-200 rounded-full animate-pulse"></div>
+                        <span>Generating...</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                    <div className="h-4 bg-gray-200 rounded animate-pulse w-3/4"></div>
+                    <div className="h-4 bg-gray-200 rounded animate-pulse w-1/2"></div>
                   </div>
                 </div>
-                <p className="text-gray-700 leading-relaxed mb-6">{section.content}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Enhanced Visual Blocks - More Responsive */}
+          {sections.length > 0 && (
+            <div className="space-y-4 md:space-y-6 mb-10 md:mb-12">
+              <div className="text-center mb-4 md:mb-5">
+                <h3 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mb-2 md:mb-3">Interactive Visualizations</h3>
+                <p className="text-sm md:text-base text-gray-600 max-w-full md:max-w-xl mx-auto">
+                  Explore complex concepts through beautifully designed interactive elements
+                </p>
+              </div>
+              
+              <div className="animate-fadeInUp">
+                <VisualBlock 
+                  type="diagram" 
+                  title="Interactive Diagram" 
+                  interactive={true}
+                />
                 
-                {/* Display generated image if available */}
-                {isDynamicContent && (section as GeneratedSection).imageUrl && (
-                  <div className="mb-6 animate-imageFadeIn">
-                    <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-4 border border-purple-200">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Image className="w-4 h-4 text-purple-500" />
-                        <span className="text-sm font-medium text-purple-700">AI Generated Image   <button
-                            onClick={() => window.open((section as GeneratedSection).imageUrl, '_blank')}
-                            className="px-3 py-1 bg-white/90 text-gray-800 rounded-lg text-sm font-medium hover:bg-white transition-all duration-200"
-                          >
-                            View Full Size
-                          </button></span>
-                      </div>
-                      <div className="relative group">
-                        <img 
-                          src={(section as GeneratedSection).imageUrl} 
-                          alt={`AI generated image for: ${section.title}`}
-                          className="w-full h-auto rounded-lg shadow-lg border border-purple-200 hover:shadow-xl transition-all duration-300"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                          }}
-                        />
-                       
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {!isDynamicContent && index === currentSection && !isGenerating && (
-                  <button
-                    onClick={() => handleSectionInteraction(index, 'complete')}
-                    className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
-                  >
-                    {index === displaySections.length - 1 ? 'Complete Lesson' : 'Continue'}
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-
-          {/* Loading Placeholder Sections */}
-          {isGenerating && getLoadingSections().map((loadingSection, index) => (
-            <div
-              key={loadingSection.id}
-              className="transition-all duration-700 opacity-100 animate-streamPulse"
-              style={{ animationDelay: `${index * 0.2}s` }}
-            >
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center">
-                    <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h2 className="text-2xl font-bold text-gray-300">{loadingSection.title}</h2>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-400">
-                      <div className="w-3 h-3 bg-gray-200 rounded-full animate-pulse"></div>
-                      <span>Generating...</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
-                  <div className="h-4 bg-gray-200 rounded animate-pulse w-3/4"></div>
-                  <div className="h-4 bg-gray-200 rounded animate-pulse w-1/2"></div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <VisualBlock 
+                    type="grid" 
+                    title="Data Grid" 
+                    interactive={true}
+                  />
+                  <VisualBlock 
+                    type="flowchart" 
+                    title="Process Flow" 
+                    interactive={true}
+                  />
                 </div>
               </div>
             </div>
-          ))}
+          )}
         </div>
-
-        {/* Enhanced Visual Blocks - More Responsive */}
-        <div className="space-y-4 md:space-y-6 mb-10 md:mb-12">
-          <div className="text-center mb-4 md:mb-5">
-            <h3 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mb-2 md:mb-3">Interactive Visualizations</h3>
-            <p className="text-sm md:text-base text-gray-600 max-w-full md:max-w-xl mx-auto">
-              Explore complex concepts through beautifully designed interactive elements
-            </p>
-          </div>
-          
-          <div className="animate-fadeInUp">
-            <VisualBlock 
-              type="diagram" 
-              title="Photosynthesis Process" 
-              interactive={true}
-            />
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <VisualBlock 
-                type="grid" 
-                title="Chloroplast Structure" 
-                interactive={true}
-              />
-              <VisualBlock 
-                type="flowchart" 
-                title="Energy Conversion Steps" 
-                interactive={true}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Key Concepts - Only show for default content */}
-        {!isDynamicContent && (
-          <div className="mt-12 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Key Concepts</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[
-                { term: "Chlorophyll", definition: "The green pigment that captures light energy" },
-                { term: "ATP", definition: "Adenosine triphosphate, the energy currency of cells" },
-                { term: "NADPH", definition: "Electron carrier that provides reducing power" },
-                { term: "Carbon Fixation", definition: "Process of converting CO₂ into organic compounds" },
-              ].map((concept, index) => (
-                <div key={index} className="p-4 bg-gray-50 rounded-lg">
-                  <h4 className="font-semibold text-gray-900 mb-2">{concept.term}</h4>
-                  <p className="text-sm text-gray-600">{concept.definition}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
