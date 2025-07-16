@@ -1,15 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { 
-  Home, 
-  BookOpen, 
-  Users, 
-  Settings, 
-  ChevronLeft, 
-  ChevronRight, 
-  Award, 
-  TrendingUp, 
+import {
+  Home,
+  BookOpen,
+  Users,
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  Award,
+  TrendingUp,
   Calendar,
   MessageCircle,
   Bell,
@@ -21,17 +21,31 @@ import {
   LogOut,
   Power
 } from 'lucide-react';
+
 import { useAuth } from '@/lib/stores/authStore';
 import { useRouter } from 'next/navigation';
+import { mockCourses } from '@/data/courses';
+import type { Course } from '@/types/api';
+import CompactCatalog from './CompactCatalog';
 
 interface SidebarProps {
   isCollapsed?: boolean;
   setIsCollapsed?: (collapsed: boolean) => void;
+  onNavigate?: (section: string) => void;
+  currentSection?: string;
+  selectedCourse?: Course | null;
+  onLessonSelect?: (courseId: string, lessonId: string) => void;
 }
 
-export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollapsed: externalSetIsCollapsed }: SidebarProps = {}) {
+export default function Sidebar({
+  isCollapsed: externalIsCollapsed,
+  setIsCollapsed: externalSetIsCollapsed,
+  onNavigate = () => {},
+  currentSection = 'dashboard',
+  selectedCourse,
+  onLessonSelect
+}: SidebarProps = {}) {
   const [internalIsCollapsed, setInternalIsCollapsed] = useState(false);
-  
   const isCollapsed = externalIsCollapsed ?? internalIsCollapsed;
   const setIsCollapsed = externalSetIsCollapsed ?? setInternalIsCollapsed;
   const [hoveredItem, setHoveredItem] = useState<number | null>(null);
@@ -44,16 +58,14 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
   const handleMenuClick = (item: any, index: number) => {
     if (item.label === 'Settings') {
       router.push('/settings');
+    } else {
+      item.onClick?.();
     }
-    // Add more navigation logic for other menu items as needed
   };
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
-    
-    // Add a small delay for better UX
     await new Promise(resolve => setTimeout(resolve, 600));
-    
     logout();
     setIsLoggingOut(false);
   };
@@ -62,16 +74,18 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
     {
       icon: Home,
       label: 'Dashboard',
-      active: true,
+      active: currentSection === 'dashboard',
       color: 'from-blue-500 to-cyan-500',
       notifications: 0,
+      onClick: () => onNavigate('dashboard')
     },
     {
       icon: BookOpen,
-      label: 'Courses',
-      active: false,
+      label: 'Catalog',
+      active: currentSection === 'catalog',
       color: 'from-purple-500 to-pink-500',
       notifications: 3,
+      onClick: () => onNavigate('catalog')
     },
     {
       icon: Users,
@@ -79,6 +93,7 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
       active: false,
       color: 'from-green-500 to-emerald-500',
       notifications: 12,
+      onClick: () => onNavigate('community')
     },
     {
       icon: Award,
@@ -86,6 +101,7 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
       active: false,
       color: 'from-amber-500 to-orange-500',
       notifications: 1,
+      onClick: () => onNavigate('achievements')
     },
     {
       icon: TrendingUp,
@@ -93,6 +109,7 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
       active: false,
       color: 'from-indigo-500 to-purple-500',
       notifications: 0,
+      onClick: () => onNavigate('progress')
     },
     {
       icon: Calendar,
@@ -100,6 +117,7 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
       active: false,
       color: 'from-pink-500 to-rose-500',
       notifications: 2,
+      onClick: () => onNavigate('schedule')
     },
     {
       icon: MessageCircle,
@@ -107,6 +125,7 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
       active: false,
       color: 'from-teal-500 to-cyan-500',
       notifications: 5,
+      onClick: () => onNavigate('messages')
     },
     {
       icon: Settings,
@@ -114,23 +133,22 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
       active: false,
       color: 'from-slate-500 to-gray-600',
       notifications: 0,
-    },
+      onClick: () => onNavigate('settings')
+    }
   ];
 
   const quickActions = [
     { icon: Search, label: 'Search', color: 'from-violet-500 to-purple-500' },
     { icon: Bell, label: 'Notifications', color: 'from-yellow-500 to-orange-500' },
-    { icon: Star, label: 'Favorites', color: 'from-pink-500 to-rose-500' },
+    { icon: Star, label: 'Favorites', color: 'from-pink-500 to-rose-500' }
   ];
 
   return (
     <div className={`bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 ${isCollapsed ? 'w-12' : 'w-48'} h-screen flex flex-col transition-all duration-300 ease-in-out relative shadow-2xl border-r border-white/10`}>
-      {/* Enhanced Background Effects */}
+      {/* Background Effects */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-16 left-1/2 transform -translate-x-1/2 w-32 h-32 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full blur-2xl animate-pulse"></div>
         <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 w-24 h-24 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-full blur-xl animate-pulse animation-delay-2000"></div>
-        
-        {/* Floating Sparkles */}
         <div className="absolute top-20 right-3 text-white/10 animate-pulse">
           <Sparkles className="w-3 h-3" />
         </div>
@@ -139,14 +157,14 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
         </div>
       </div>
 
-      {/* Header - Clickable Logo */}
+      {/* Logo Header */}
       <div className={`p-2 border-b border-white/10 relative z-10 ${isCollapsed ? 'px-2' : ''}`}>
-        <div 
+        <div
           className={`flex items-center gap-2 ${isCollapsed ? 'justify-center' : ''} cursor-pointer hover:scale-105 transition-all duration-300`}
           onClick={() => setIsCollapsed(!isCollapsed)}
           title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
         >
-          <div className="w-6 h-6 bg-gradient-to-br from-purple-500 via-pink-500 to-violet-600 rounded-lg flex items-center justify-center shadow-lg animate-pulse hover:shadow-xl hover:from-purple-600 hover:via-pink-600 hover:to-violet-700 transition-all duration-300">
+          <div className="w-6 h-6 bg-gradient-to-br from-purple-500 via-pink-500 to-violet-600 rounded-lg flex items-center justify-center shadow-lg animate-pulse">
             <Sparkles className="w-3 h-3 text-white" />
           </div>
           {!isCollapsed && (
@@ -160,7 +178,7 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
         </div>
       </div>
 
-      {/* Search Bar */}
+      {/* Search */}
       {!isCollapsed && (
         <div className="p-2 relative z-10">
           <div className="relative">
@@ -170,7 +188,7 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
               placeholder="Search courses..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-6 pr-3 py-1.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300 text-white placeholder-white/40 text-xs"
+              className="w-full pl-6 pr-3 py-1.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white text-xs placeholder-white/40"
             />
           </div>
         </div>
@@ -183,17 +201,93 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
             {quickActions.map((action, index) => (
               <button
                 key={index}
-                className={`flex-1 p-1.5 bg-gradient-to-r ${action.color} rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-lg group`}
+                className={`flex-1 p-1.5 bg-gradient-to-r ${action.color} rounded-lg hover:scale-105 transition-all duration-300`}
                 title={action.label}
               >
-                <action.icon className="w-3 h-3 text-white mx-auto group-hover:scale-110 transition-transform" />
+                <action.icon className="w-3 h-3 text-white mx-auto" />
               </button>
             ))}
           </div>
         </div>
       )}
 
-      {/* Navigation Menu */}
+      {/* Lessons or Catalog */}
+      {!isCollapsed && selectedCourse && currentSection === 'lesson' ? (
+        <div className="px-3 mb-4 relative z-10">
+          <div className="flex items-center gap-2 mb-3">
+            <div className={`w-6 h-6 bg-gradient-to-br ${selectedCourse.color} rounded-lg flex items-center justify-center shadow-lg`}>
+              <BookOpen className="w-3 h-3 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-xs font-semibold text-white truncate">
+                {selectedCourse.title}
+              </h3>
+              <p className="text-xs text-white/60">{selectedCourse.category}</p>
+            </div>
+            <button
+              onClick={() => onNavigate('catalog')}
+              className="text-xs text-purple-400 hover:text-purple-300"
+            >
+              All
+            </button>
+          </div>
+
+          {/* Course Progress */}
+          <div className="mb-3">
+            <div className="flex justify-between text-xs text-white/70 mb-1">
+              <span>Progress</span>
+              <span>
+                {selectedCourse.lessons.filter(l => l.completed).length}/{selectedCourse.lessons.length}
+              </span>
+            </div>
+            <div className="w-full bg-white/20 rounded-full h-1">
+              <div
+                className={`bg-gradient-to-r ${selectedCourse.color} h-1 rounded-full transition-all duration-500`}
+                style={{ width: `${selectedCourse.progress || 0}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Lessons List */}
+          <div className="space-y-1 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20">
+            {selectedCourse.lessons.map((lesson) => (
+              <button
+                key={lesson.id}
+                onClick={() => onLessonSelect?.(selectedCourse.id, lesson.id)}
+                className="w-full text-left p-2 rounded bg-white/5 hover:bg-white/10"
+              >
+                <div className="flex items-center gap-2">
+                  <div className={`w-3 h-3 rounded-full flex items-center justify-center ${
+                    lesson.completed ? 'bg-green-500' : 'bg-white/20 border border-white/30'
+                  }`}>
+                    {lesson.completed && <span className="text-white text-xs">✓</span>}
+                  </div>
+                  <span className="text-xs text-white truncate">{lesson.order}. {lesson.title}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
+        !isCollapsed && (
+          <div className="px-3 mb-4 relative z-10">
+            <CompactCatalog
+              courses={mockCourses}
+              selectedCourse={selectedCourse}
+              onCourseSelect={(courseId) => {
+                const course = mockCourses.find(c => c.id === courseId);
+                if (course && course.lessons.length > 0) {
+                  onLessonSelect?.(courseId, course.lessons[0].id);
+                }
+              }}
+              onLessonSelect={onLessonSelect}
+              onViewAllClick={() => onNavigate?.('catalog')}
+            />
+          </div>
+        )
+      )}
+
+      {/* Menu */}
       <div className="flex-1 overflow-y-auto p-2 relative z-10">
         <div className="mb-3">
           <h2 className={`text-xs font-bold text-white/60 mb-2 uppercase tracking-wider ${isCollapsed ? 'text-center' : ''}`}>
@@ -206,42 +300,29 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
                 onClick={() => handleMenuClick(item, index)}
                 onMouseEnter={() => setHoveredItem(index)}
                 onMouseLeave={() => setHoveredItem(null)}
-                className={`w-full flex items-center gap-2 p-2 rounded-lg transition-all duration-300 group relative overflow-hidden ${
+                className={`w-full flex items-center gap-2 p-2 rounded-lg relative transition-all duration-300 group ${
                   item.active
                     ? 'bg-gradient-to-r from-purple-500/30 to-pink-500/30 text-white border border-purple-500/50 shadow-lg'
                     : 'text-white/70 hover:bg-white/10 hover:text-white'
                 } ${isCollapsed ? 'justify-center' : ''}`}
               >
-                {/* Hover effect background */}
-                <div className={`absolute inset-0 bg-gradient-to-r ${item.color} opacity-0 group-hover:opacity-20 transition-opacity duration-300 rounded-lg`} />
-                
-                {/* Icon container */}
-                <div className={`w-4 h-4 flex items-center justify-center rounded transition-all duration-300 ${
-                  item.active 
-                    ? `bg-gradient-to-r ${item.color} shadow-lg` 
-                    : 'group-hover:bg-white/20'
+                <div className={`w-4 h-4 flex items-center justify-center rounded ${
+                  item.active ? `bg-gradient-to-r ${item.color}` : 'group-hover:bg-white/20'
                 }`}>
-                  <item.icon className={`w-3 h-3 transition-all duration-300 ${
-                    item.active 
-                      ? 'text-white' 
-                      : 'text-white/70 group-hover:text-white group-hover:scale-110'
-                  }`} />
+                  <item.icon className="w-3 h-3" />
                 </div>
-                
                 {!isCollapsed && (
                   <>
-                    <span className="flex-1 text-left font-medium text-sm">{item.label}</span>
+                    <span className="flex-1 text-sm">{item.label}</span>
                     {item.notifications > 0 && (
-                      <span className={`w-5 h-5 bg-gradient-to-r ${item.color} rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg animate-pulse`}>
+                      <span className={`w-5 h-5 bg-gradient-to-r ${item.color} rounded-full flex items-center justify-center text-xs text-white shadow-lg`}>
                         {item.notifications > 9 ? '9+' : item.notifications}
                       </span>
                     )}
                   </>
                 )}
-
-                {/* Tooltip for collapsed state */}
                 {isCollapsed && hoveredItem === index && (
-                  <div className="absolute left-14 bg-gray-900 text-white text-sm px-2 py-1 rounded-lg shadow-xl z-50 whitespace-nowrap border border-white/20">
+                  <div className="absolute left-14 bg-gray-900 text-white text-sm px-2 py-1 rounded-lg shadow-xl z-50">
                     {item.label}
                     {item.notifications > 0 && (
                       <span className="ml-2 text-purple-400">({item.notifications})</span>
@@ -254,11 +335,10 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
         </div>
       </div>
 
-      {/* Enhanced User Profile with Logout */}
+      {/* User Profile & Logout */}
       <div className={`p-2 border-t border-white/10 bg-gradient-to-r from-purple-500/10 to-pink-500/10 backdrop-blur-sm relative z-10 ${isCollapsed ? 'px-2' : ''}`}>
         {!isCollapsed ? (
           <div className="space-y-2">
-            {/* User Info */}
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg">
                 <span className="text-white font-bold text-sm">
@@ -266,50 +346,34 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
                 </span>
               </div>
               <div className="flex-1">
-                <h3 className="text-white font-semibold text-sm">
-                  {user?.name || 'User'}
-                </h3>
+                <h3 className="text-white font-semibold text-sm">{user?.name || 'User'}</h3>
                 <p className="text-white/60 text-xs">Premium Member</p>
               </div>
               <div className="flex flex-col items-center">
-                <div className="w-6 h-6 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-full flex items-center justify-center shadow-sm">
+                <div className="w-6 h-6 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-full flex items-center justify-center">
                   <Target className="w-3 h-3 text-white" />
                 </div>
                 <span className="text-xs text-white/60 mt-1">Level 12</span>
               </div>
             </div>
-
-            {/* Logout Button */}
             <button
               onClick={handleLogout}
               disabled={isLoggingOut}
-              className="w-full flex items-center gap-2 p-2 rounded-xl bg-gradient-to-r from-red-500/20 to-pink-500/20 border border-red-500/30 text-red-300 hover:from-red-500/30 hover:to-pink-500/30 hover:border-red-400/50 hover:text-red-200 transition-all duration-300 group relative overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center gap-2 p-2 rounded-xl bg-gradient-to-r from-red-500/20 to-pink-500/20 border border-red-500/30 text-red-300 hover:border-red-400/50 hover:text-red-200"
             >
-              {/* Animated background on hover */}
-              <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
-              
-              {/* Icon container */}
-              <div className="w-4 h-4 flex items-center justify-center rounded-lg bg-red-500/20 group-hover:bg-red-500/30 transition-all duration-300">
+              <div className="w-4 h-4 flex items-center justify-center bg-red-500/20">
                 {isLoggingOut ? (
-                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-300"></div>
+                  <div className="animate-spin h-3 w-3 border-b-2 border-red-300 rounded-full" />
                 ) : (
-                  <LogOut className="w-3 h-3 group-hover:scale-110 transition-transform" />
+                  <LogOut className="w-3 h-3" />
                 )}
               </div>
-              
-              <span className="flex-1 text-left font-medium text-sm">
-                {isLoggingOut ? 'Signing out...' : 'Sign Out'}
-              </span>
-              
-              {/* Power icon on the right */}
-              <div className="w-4 h-4 flex items-center justify-center opacity-60 group-hover:opacity-100 transition-opacity">
-                <Power className="w-3 h-3" />
-              </div>
+              <span className="flex-1 text-sm">{isLoggingOut ? 'Signing out...' : 'Sign Out'}</span>
+              <Power className="w-3 h-3 opacity-60" />
             </button>
           </div>
         ) : (
           <div className="space-y-2">
-            {/* Collapsed User Avatar */}
             <div className="flex justify-center">
               <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg">
                 <span className="text-white font-bold text-sm">
@@ -317,41 +381,32 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
                 </span>
               </div>
             </div>
-            
-            {/* Collapsed Logout Button */}
             <button
               onClick={handleLogout}
               disabled={isLoggingOut}
-              className="w-full flex items-center justify-center p-1.5 rounded-xl bg-gradient-to-r from-red-500/20 to-pink-500/20 border border-red-500/30 text-red-300 hover:from-red-500/30 hover:to-pink-500/30 hover:border-red-400/50 hover:text-red-200 transition-all duration-300 group relative overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center p-1.5 rounded-xl bg-gradient-to-r from-red-500/20 to-pink-500/20 border border-red-500/30 text-red-300 hover:border-red-400/50 hover:text-red-200"
               title="Sign Out"
             >
-              {/* Animated background on hover */}
-              <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
-              
               {isLoggingOut ? (
-                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-300"></div>
+                <div className="animate-spin h-3 w-3 border-b-2 border-red-300 rounded-full" />
               ) : (
-                <LogOut className="w-3 h-3 group-hover:scale-110 transition-transform" />
+                <LogOut className="w-3 h-3" />
               )}
             </button>
           </div>
         )}
       </div>
 
-      {/* Progress Indicator */}
-      {!isCollapsed && (
-        <div className="p-2 bg-gradient-to-r from-blue-500/10 to-purple-500/10 relative z-10">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-white/70 text-xs font-medium">Weekly Goal</span>
-            <span className="text-white/70 text-xs font-medium">7/10 hrs</span>
-          </div>
-          <div className="w-full bg-white/20 rounded-full h-1.5">
-            <div className="bg-gradient-to-r from-purple-500 to-pink-500 h-1.5 rounded-full transition-all duration-500 shadow-sm" style={{ width: '70%' }}>
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shine"></div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Expand/Collapse Control */}
+      <div className="absolute top-1/2 -right-3 transform -translate-y-1/2 z-20">
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="w-6 h-6 bg-slate-800 border border-white/10 rounded-full flex items-center justify-center shadow-md hover:shadow-lg"
+          title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+        >
+          {isCollapsed ? <ChevronRight className="w-3 h-3 text-white" /> : <ChevronLeft className="w-3 h-3 text-white" />}
+        </button>
+      </div>
     </div>
   );
 }
