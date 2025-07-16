@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import React from 'react';
 import VisualBlock from './VisualBlock';
 import { ChevronRight, BookOpen, Lightbulb, CheckCircle, FileText, Brain, Search, Microscope, Loader2, Link, TrendingUp, MessageSquare, Image, MessageCircle } from 'lucide-react';
@@ -23,6 +23,7 @@ export default function GeneratedContent({
   const [currentSection, setCurrentSection] = useState(0);
   const [showChainHistory, setShowChainHistory] = useState(false);
   const [imageLoadingStates, setImageLoadingStates] = useState<{ [key: string]: boolean }>({});
+
 
   // Icons for different types of responses
   const responseIcons = [FileText, Brain, Search, Microscope];
@@ -74,26 +75,9 @@ export default function GeneratedContent({
     }));
   }, [sections]);
 
-  // Function to handle section progression
-  const handleNextSection = () => {
-    if (currentSection < sections.length - 1) {
-      setCurrentSection(prev => prev + 1);
-    }
-  };
 
-  // Function to handle section regression
-  const handlePreviousSection = () => {
-    if (currentSection > 0) {
-      setCurrentSection(prev => prev - 1);
-    }
-  };
 
-  // Function to jump to specific section
-  const jumpToSection = (index: number) => {
-    if (index >= 0 && index < sections.length) {
-      setCurrentSection(index);
-    }
-  };
+ 
 
   // Function to reset progress
   const resetProgress = () => {
@@ -228,24 +212,6 @@ export default function GeneratedContent({
     };
   };
 
-  // Function to handle section interaction
-  const handleSectionInteraction = (index: number, action: 'view' | 'complete' | 'skip') => {
-    switch (action) {
-      case 'view':
-        jumpToSection(index);
-        break;
-      case 'complete':
-        if (index === currentSection) {
-          handleNextSection();
-        }
-        break;
-      case 'skip':
-        if (isDynamicContent) {
-          jumpToSection(index);
-        }
-        break;
-    }
-  };
 
   // Function to get content summary
   const getContentSummary = () => {
@@ -269,7 +235,7 @@ export default function GeneratedContent({
   // If no content is generated yet, show the default prompt message
   if (!isDynamicContent && !isGenerating) {
     return (
-      <div className="h-full w-full bg-gray-50">
+      <div className="h-fit w-full bg-gray-50">
         {/* Full-width responsive header */}
         <div className="w-full bg-gradient-to-r from-blue-500 via-purple-600 to-indigo-700 shadow-lg">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -330,7 +296,7 @@ export default function GeneratedContent({
   }
 
   return (
-    <div className="h-full w-full bg-gray-50">
+    <div className="h-fit w-full bg-gray-50">
       {/* Full-width responsive header */}
       <div className="w-full bg-gradient-to-r from-blue-500 via-purple-600 to-indigo-700 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -363,6 +329,7 @@ export default function GeneratedContent({
               </div>
             </div>
           </div>
+
         </div>
       </div>
 
@@ -561,39 +528,6 @@ export default function GeneratedContent({
               </div>
             ))}
           </div>
-
-          {/* Enhanced Visual Blocks - More Responsive */}
-          {sections.length > 0 && (
-            <div className="space-y-4 md:space-y-6 mb-10 md:mb-12">
-              <div className="text-center mb-4 md:mb-5">
-                <h3 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mb-2 md:mb-3">Interactive Visualizations</h3>
-                <p className="text-sm md:text-base text-gray-600 max-w-full md:max-w-xl mx-auto">
-                  Explore complex concepts through beautifully designed interactive elements
-                </p>
-              </div>
-              
-              <div className="animate-fadeInUp">
-                <VisualBlock 
-                  type="diagram" 
-                  title="Interactive Diagram" 
-                  interactive={true}
-                />
-                
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <VisualBlock 
-                    type="grid" 
-                    title="Data Grid" 
-                    interactive={true}
-                  />
-                  <VisualBlock 
-                    type="flowchart" 
-                    title="Process Flow" 
-                    interactive={true}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

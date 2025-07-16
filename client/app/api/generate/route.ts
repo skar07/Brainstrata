@@ -17,7 +17,10 @@ import { OpenAI } from 'openai';
 //   return t5Pipeline;
 // }
 
-const client = new OpenAI();
+// Initialize OpenAI client with better error handling
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 // Remove the test response creation
 // const response = client.responses.create({
@@ -70,7 +73,7 @@ Create content that is clear, educational, and easy for students to understand. 
   messages.push({ role: 'user' as const, content: prompt });
   
   const response = await client.chat.completions.create({
-    model: 'gpt-4.1',
+    model: 'gpt-4o-mini',
     messages: messages,
     max_tokens: isChained ? 300 : 400,
     temperature: isChained ? 0.7 : 0.6,
