@@ -33,12 +33,37 @@ async function generateOpenAIPrompt(prompt: string, context?: string, isChained:
   if (isChained && context) {
     messages.push({ 
       role: 'system' as const, 
-      content: `You are a helpful AI assistant. Previous context: ${context}. Continue the conversation naturally.` 
+      content: `You are an expert educational AI assistant specializing in creating professional, well-structured learning content. Previous context: ${context}. 
+
+IMPORTANT: Format your response using these professional structures:
+- Use "## Heading" for main sections
+- Use "### Subheading" for subsections  
+- Use "Definition:" for key terms
+- Use "Example:" for examples
+- Use "Tip:" for helpful tips
+- Use "Warning:" for important cautions
+- Use "- " for bullet points
+- Use "**text**" for emphasis
+
+Create content that is clear, educational, and easy for students to understand.` 
     });
   } else {
     messages.push({ 
       role: 'system' as const, 
-      content: 'You are a helpful AI assistant that explains concepts clearly and provides useful information.' 
+      content: `You are an expert educational AI assistant specializing in creating professional, well-structured learning content.
+
+IMPORTANT: Format your response using these professional structures:
+- Use "## Heading" for main sections
+- Use "### Subheading" for subsections  
+- Use "Definition:" for key terms
+- Use "Example:" for examples
+- Use "Tip:" for helpful tips
+- Use "Warning:" for important cautions
+- Use "- " for bullet points
+- Use "**text**" for emphasis
+- remove --- from the response
+
+Create content that is clear, educational, and easy for students to understand. Structure your response with proper headings, definitions, examples, and actionable tips.` 
     });
   }
   
@@ -47,9 +72,11 @@ async function generateOpenAIPrompt(prompt: string, context?: string, isChained:
   const response = await client.chat.completions.create({
     model: 'gpt-4.1',
     messages: messages,
-    max_tokens: isChained ? 200 : 150,
-    temperature: isChained ? 0.8 : 0.7,
+    max_tokens: isChained ? 300 : 400,
+    temperature: isChained ? 0.7 : 0.6,
   });
+
+  console.log(response.choices[0].message.content);
   
   return response.choices[0].message.content || '';
 }
@@ -61,10 +88,10 @@ async function generateImage(prompt: string, context?: string, isChained: boolea
     
     if (isChained && context) {
       // For chained conversations, create a more contextual image prompt
-      imagePrompt = `Create a visual representation of: ${prompt}. Context: ${context}. Style: Educational, clear, colorful, suitable for learning materials.`;
+      imagePrompt = `Create a visual representation of: ${prompt}. Context: ${context}. Style: Educational, clear, colorful, suitable for learning materials. Important: Create a wide landscape image that fits properly in a 16:9 aspect ratio (1920x1080 equivalent) without any content being cut off. Ensure all elements are fully visible within the frame.`;
     } else {
       // For new conversations, enhance the prompt for better image generation
-      imagePrompt = `Create a visual representation of: ${prompt}. Style: Educational, clear, colorful, suitable for learning materials, scientific illustration.`;
+      imagePrompt = `Create a visual representation of: ${prompt}. Style: Educational, clear, colorful, suitable for learning materials, scientific illustration. Important: Create a wide landscape image that fits properly in a 16:9 aspect ratio (1920x1080 equivalent) without any content being cut off. Ensure all elements are fully visible within the frame.`;
     }
 
     console.log('Generating image with prompt:', imagePrompt);
@@ -73,7 +100,7 @@ async function generateImage(prompt: string, context?: string, isChained: boolea
       model: "dall-e-3",
       prompt: imagePrompt,
       n: 1,
-      size: "1024x1024",
+      size: "1792x1024",
       quality: "standard",
       style: "natural",
     });
@@ -90,20 +117,20 @@ async function generateImage(prompt: string, context?: string, isChained: boolea
 
 function generatePromptVariations(originalPrompt: string, isChained: boolean = false, context?: string): string[] {
   if (isChained && context) {
-    // Very simple contextual variations - just add the context as background
+    // Professional contextual variations for chained conversations
     return [
-      `${context} ${originalPrompt}`, 
-      `${context} How does ${originalPrompt} work?`, 
-      `${context} Examples of ${originalPrompt}`, 
-      `${context} More about ${originalPrompt}` 
+      `${context} ## ${originalPrompt} - Provide a comprehensive overview with definitions, examples, and practical applications.`, 
+      `${context} ### How ${originalPrompt} Works - Explain the process, mechanisms, and step-by-step breakdown.`, 
+      `${context} ### Examples and Applications of ${originalPrompt} - Show real-world examples, use cases, and practical implementations.`, 
+      `${context} ### Key Insights and Tips about ${originalPrompt} - Share important tips, warnings, and best practices.` 
     ];
   } else {
-    // Standard prompt variations for new conversations
+    // Professional prompt variations for new conversations
     return [
-      `Explain ${originalPrompt}`, 
-      `How does ${originalPrompt} work?`, 
-      `Give examples of ${originalPrompt}`, 
-      `Tell me about ${originalPrompt}` 
+      `## ${originalPrompt} - Provide a comprehensive educational overview with clear definitions, examples, and practical applications. Structure your response professionally with headings, definitions, examples, and tips.`, 
+      `### How ${originalPrompt} Works - Explain the process, mechanisms, and provide a step-by-step breakdown with examples.`, 
+      `### Examples and Applications of ${originalPrompt} - Show real-world examples, use cases, and practical implementations with clear explanations.`, 
+      `### Key Insights and Best Practices for ${originalPrompt} - Share important tips, warnings, common mistakes to avoid, and best practices.` 
     ];
   }
 }
