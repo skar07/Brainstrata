@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import MessageInput from './MessageInput';
-import { Bot, User, ChevronLeft, Copy, ThumbsUp, ThumbsDown, Sparkles, MessageCircle, Zap, Star, Brain, Lightbulb, Target, Coffee } from 'lucide-react';
+import { Bot, User, ChevronLeft, Copy, ThumbsUp, ThumbsDown, Sparkles, MessageCircle, Zap, Star, Brain, Lightbulb, Target, Coffee, Image, Upload } from 'lucide-react';
 import type { GeneratedSection } from '../types/api';
 import { PromptChain } from './promptchaining';
 
@@ -72,6 +72,9 @@ export default function Chatbot({
 
   const [isTyping, setIsTyping] = useState(false);
   const [internalIsCollapsed, setInternalIsCollapsed] = useState(false);
+  const [isImageMode, setIsImageMode] = useState(false);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [imageAnalysis, setImageAnalysis] = useState<string | null>(null);
   const promptChainRef = useRef<PromptChain | null>(null);
   
   const isCollapsed = externalIsCollapsed ?? internalIsCollapsed;
@@ -90,6 +93,12 @@ export default function Chatbot({
       // First call - just the user message
       const isChainedMessage = promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 0 : false;
       
+      // Add image context to the message if in image mode
+      let messageContent = content;
+      if (isImageMode && imageAnalysis) {
+        messageContent = `[Image Context: ${imageAnalysis}] ${content}`;
+      }
+      
       const userMessage: Message = {
         id: Date.now().toString(),
         content,
@@ -104,7 +113,7 @@ export default function Chatbot({
 
       // Add to prompt chain (without response for now)
       if (promptChainRef.current) {
-        promptChainRef.current.addPrompt(content);
+        promptChainRef.current.addPrompt(messageContent);
         onChainUpdate?.(promptChainRef.current);
       }
     } else {
@@ -135,20 +144,57 @@ export default function Chatbot({
     }
   };
 
-  const generateResponse = (input: string): string => {
-    const responses = [
-      "Great question! Let me explain that concept in detail. Photosynthesis is a fascinating process that involves multiple stages working together to convert light energy into chemical energy.",
-      "That's an excellent observation! The process you're asking about is fundamental to understanding how plants create energy. Here's what happens...",
-      "I'm glad you asked! This is one of the most important concepts in biology. Let me break it down for you step by step.",
-      "Interesting question! The answer involves understanding the molecular mechanisms that make life possible. Here's a comprehensive explanation...",
-      "Perfect timing for this question! What you're asking about connects to several other important biological processes. Let me explain...",
-    ];
-    return responses[Math.floor(Math.random() * responses.length)];
-  };
+ 
 
   const handleChainUpdate = (chain: PromptChain) => {
     promptChainRef.current = chain;
     onChainUpdate?.(chain);
+  };
+
+  const handleImageUpload = async (file: File) => {
+    try {
+      // Convert file to base64
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64Image = e.target?.result as string;
+        setUploadedImage(base64Image);
+        
+        // Send image for analysis
+        const formData = new FormData();
+        formData.append('image', file);
+        
+        const response = await fetch('/api/analyze-image', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          setImageAnalysis(result.analysis);
+          
+          // Add a system message about image analysis
+          const analysisMessage: Message = {
+            id: Date.now().toString(),
+            content: `📷 Image uploaded and analyzed. You can now ask questions about this image.`,
+            isBot: true,
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, analysisMessage]);
+        } else {
+          throw new Error('Failed to analyze image');
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      const errorMessage: Message = {
+        id: Date.now().toString(),
+        content: `❌ Error uploading image. Please try again.`,
+        isBot: true,
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    }
   };
 
   const resetChain = () => {
@@ -252,6 +298,102 @@ export default function Chatbot({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Mode Toggle - Fixed */}
+      {!isCollapsed && (
+        <div className="flex-shrink-0 p-3 border-b border-white/10 bg-gradient-to-r from-green-500/10 to-blue-500/10 relative z-10">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full animate-pulse"></div>
+              <p className="text-xs text-white/80 font-semibold">Chat Mode</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`text-xs font-medium transition-colors duration-300 ${
+                !isImageMode ? 'text-white' : 'text-white/50'
+              }`}>Text</span>
+              <button
+                onClick={() => setIsImageMode(!isImageMode)}
+                className={`relative w-12 h-6 rounded-full transition-all duration-300 shadow-lg ${
+                  isImageMode 
+                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 shadow-purple-500/30' 
+                    : 'bg-white/20 shadow-white/10'
+                }`}
+                title={isImageMode ? "Switch to text mode" : "Switch to image mode"}
+              >
+                <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all duration-300 shadow-md ${
+                  isImageMode ? 'right-0.5' : 'left-0.5'
+                }`} />
+              </button>
+              <span className={`text-xs font-medium transition-colors duration-300 ${
+                isImageMode ? 'text-white' : 'text-white/50'
+              }`}>Image</span>
+            </div>
+          </div>
+          
+          {/* Image Upload Area */}
+          {isImageMode && (
+            <div className="space-y-3">
+              {!uploadedImage ? (
+                <div className="relative group">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleImageUpload(file);
+                    }}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    id="image-upload"
+                  />
+                  <label
+                    htmlFor="image-upload"
+                    className="flex flex-col items-center justify-center gap-2 p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-2 border-dashed border-purple-300/30 rounded-xl cursor-pointer hover:from-purple-500/20 hover:to-pink-500/20 hover:border-purple-300/50 transition-all duration-300 group-hover:scale-[1.02]"
+                  >
+                    <div className="w-8 h-8 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-lg flex items-center justify-center">
+                      <Upload className="w-4 h-4 text-purple-300" />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs text-purple-300 font-medium">Upload Image</p>
+                      <p className="text-xs text-white/40">Click or drag to upload</p>
+                    </div>
+                  </label>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="relative group">
+                    <img
+                      src={uploadedImage}
+                      alt="Uploaded"
+                      className="w-full h-24 object-cover rounded-xl border border-white/20 group-hover:border-purple-300/50 transition-all duration-300"
+                    />
+                    <button
+                      onClick={() => {
+                        setUploadedImage(null);
+                        setImageAnalysis(null);
+                      }}
+                      className="absolute top-2 right-2 w-6 h-6 bg-red-500/90 text-white rounded-full flex items-center justify-center text-sm hover:bg-red-500 hover:scale-110 transition-all duration-200 shadow-lg"
+                      title="Remove image"
+                    >
+                      ×
+                    </button>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  </div>
+                  
+                  {imageAnalysis && (
+                    <div className="p-3 bg-gradient-to-r from-green-500/10 to-blue-500/10 rounded-xl border border-green-300/20">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                        <p className="text-xs text-green-300 font-semibold">Image Analyzed</p>
+                      </div>
+                      <p className="text-xs text-white/70 leading-relaxed line-clamp-3">{imageAnalysis}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -370,6 +512,8 @@ export default function Chatbot({
               onNewGeneratedContent={onNewGeneratedContent}
               onGeneratingStateChange={onGeneratingStateChange}
               onChainUpdate={handleChainUpdate}
+              isImageMode={isImageMode}
+              imageAnalysis={imageAnalysis}
             />
           </div>
         </>

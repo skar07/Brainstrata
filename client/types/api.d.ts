@@ -51,3 +51,14 @@ export interface QuizResponse {
   questions: QuizQuestion[];
   totalQuestions: number;
 }
+
+// Image analysis interfaces
+export interface ImageAnalysisRequest {
+  image: File;
+}
+
+export interface ImageAnalysisResponse {
+  analysis: string;
+  success: boolean;
+  error?: string;
+}

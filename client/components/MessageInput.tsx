@@ -10,18 +10,22 @@ interface MessageInputProps {
   onNewGeneratedContent?: (sections: GeneratedSection[]) => void;
   onGeneratingStateChange?: (generating: boolean) => void;
   onChainUpdate?: (chain: PromptChain) => void;
+  isImageMode?: boolean;
+  imageAnalysis?: string | null;
 }
 
 export default function MessageInput({ 
   onSendMessage, 
   onNewGeneratedContent, 
   onGeneratingStateChange,
-  onChainUpdate
+  onChainUpdate,
+  isImageMode = false,
+  imageAnalysis = null
 }: MessageInputProps) {
   const [message, setMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [generateImage, setGenerateImage] = useState(false);
+  const [generateImage, setGenerateImage] = useState(true);
   const promptChainRef = useRef<PromptChain | null>(null);
 
   // Initialize prompt chain
@@ -78,11 +82,17 @@ export default function MessageInput({
       const context = buildContextFromChain();
       const isChained = promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 0 : false;
 
+      // Prepare the prompt with image context if in image mode
+      let finalPrompt = userPrompt;
+      if (isImageMode && imageAnalysis) {
+        finalPrompt = `[Image Context: ${imageAnalysis}] ${userPrompt}`;
+      }
+
       // Use streaming mode for better UX
       const res = await fetch('/api/generate', {
         method: 'POST',
         body: JSON.stringify({ 
-          prompt: userPrompt,
+          prompt: finalPrompt,
           context: context,
           isChained: isChained,
           generateImage: generateImage,
@@ -204,7 +214,6 @@ export default function MessageInput({
     } finally {
       setLoading(false);
       onGeneratingStateChange?.(false);
-      setGenerateImage(false); // Reset image generation flag
     }
   };
 
@@ -224,98 +233,25 @@ export default function MessageInput({
   const chainDepth = promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0;
 
   return (
-    <form onSubmit={handleSubmit} className="relative">
-      <div className="flex items-end gap-3">
-        {/* Input Container */}
-        <div className="flex-1 relative">
-          <textarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder={
-              chainDepth > 0 
-                ? "Continue the conversation with context..." 
-                : "Ask me anything about the lesson..."
-            }
-            rows={1}
-            className="w-full px-3 py-2 pr-16 glass backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-1 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300 text-white placeholder-white/60 resize-none text-xs leading-relaxed"
-            style={{ minHeight: '32px', maxHeight: '80px' }}
-            disabled={loading}
-          />
-          
-          {/* Input Actions */}
-          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-0.5">
-            <button
-              type="button"
-              className="p-1 text-white/60 hover:text-white hover:bg-white/10 rounded transition-all duration-200"
-              title="Attach file"
-            >
-              <Paperclip className="w-3 h-3" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setGenerateImage(!generateImage)}
-              className={`p-1 rounded transition-all duration-200 ${
-                generateImage 
-                  ? 'text-purple-400 bg-purple-500/20' 
-                  : 'text-white/60 hover:text-white hover:bg-white/10'
-              }`}
-              title={generateImage ? "Disable image generation" : "Generate image with response"}
-            >
-              <Image className="w-3 h-3" />
-            </button>
-            <button
-              type="button"
-              onClick={toggleRecording}
-              className={`p-1 rounded transition-all duration-200 ${
-                isRecording 
-                  ? 'text-red-400 bg-red-500/20 animate-pulse' 
-                  : 'text-white/60 hover:text-white hover:bg-white/10'
-              }`}
-              title={isRecording ? "Stop recording" : "Voice message"}
-            >
-              <Mic className="w-3 h-3" />
-            </button>
-          </div>
-        </div>
-
-        {/* Send Button */}
-        <button
-          type="submit"
-          disabled={!message.trim() || loading}
-          className={`p-2 rounded-xl transition-all duration-300 shadow-lg ${
-            message.trim() && !loading
-              ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 hover:scale-105 hover:shadow-xl'
-              : 'glass backdrop-blur-sm border border-white/20 text-white/40 cursor-not-allowed'
-          }`}
-          title="Send message"
-        >
-          <Send className="w-3 h-3" />
-        </button>
-      </div>
-
-      {/* Recording and Generation Indicators */}
-      {(isRecording || loading) && (
-        <div className="absolute -top-8 left-0 right-0 flex items-center justify-center">
-          <div className="glass backdrop-blur-sm rounded-full px-3 py-1 border border-white/20">
-            <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse"></div>
-              <span className="text-white/80 text-xs">
-                {isRecording ? 'Recording...' : generateImage ? 'Generating text and image...' : 'Generating...'}
-              </span>
+    <div className="space-y-3">
+      {/* Status Indicators - Fixed Position */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {isImageMode && imageAnalysis && (
+            <div className="flex items-center gap-1 px-2 py-1 bg-green-500/20 rounded-full border border-green-300/30">
+              <Image className="w-3 h-3 text-green-400" />
+              <span className="text-xs text-green-400 font-medium">Image Mode</span>
             </div>
-          </div>
+          )}
+          {generateImage && (
+            <div className="flex items-center gap-1 px-2 py-1 bg-purple-500/20 rounded-full border border-purple-300/30">
+              <Image className="w-3 h-3 text-purple-400" />
+              <span className="text-xs text-purple-400 font-medium">AI Generated</span>
+            </div>
+          )}
         </div>
-      )}
-
-      {/* Character Counter and Image Generation Status */}
-      <div className="absolute -top-5 right-0 flex items-center gap-2">
-        {generateImage && (
-          <div className="flex items-center gap-1 px-2 py-1 bg-purple-500/20 rounded-full border border-purple-300/30">
-            <Image className="w-2.5 h-2.5 text-purple-400" />
-            <span className="text-xs text-purple-400 font-medium">Image</span>
-          </div>
-        )}
+        
+        {/* Character Counter */}
         {message.length > 0 && (
           <span className={`text-xs ${
             message.length > 500 ? 'text-red-400' : 'text-white/60'
@@ -324,6 +260,90 @@ export default function MessageInput({
           </span>
         )}
       </div>
-    </form>
+
+      {/* Loading Status */}
+      {(isRecording || loading) && (
+        <div className="flex items-center justify-center">
+          <div className="glass backdrop-blur-sm rounded-full px-4 py-2 border border-white/20">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
+              <span className="text-white/80 text-xs font-medium">
+                {isRecording ? 'Recording...' : 
+                 isImageMode && imageAnalysis ? 'Analyzing image and generating response...' :
+                 generateImage ? 'Generating text and image...' : 'Generating...'}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Input Form */}
+      <form onSubmit={handleSubmit}>
+        <div className="flex items-end gap-3">
+          {/* Input Container */}
+          <div className="flex-1 relative">
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder={
+                isImageMode && imageAnalysis
+                  ? "Ask me anything about the uploaded image..."
+                  : chainDepth > 0 
+                    ? "Continue the conversation with context..." 
+                    : "Ask me anything about the lesson..."
+              }
+              rows={1}
+              className="w-full px-4 py-3 pr-20 glass backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300 text-white placeholder-white/60 resize-none text-sm leading-relaxed"
+              style={{ minHeight: '44px', maxHeight: '120px' }}
+              disabled={loading}
+            />
+            
+            {/* Input Actions */}
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
+              <button
+                type="button"
+                className="p-1.5 text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-all duration-200"
+                title="Attach file"
+              >
+                <Paperclip className="w-4 h-4" />
+              </button>
+              <div
+                className="p-1.5 rounded-lg transition-all duration-200 text-purple-400 bg-purple-500/20"
+                title="Image generation enabled"
+              >
+                <Image className="w-4 h-4" />
+              </div>
+              <button
+                type="button"
+                onClick={toggleRecording}
+                className={`p-1.5 rounded-lg transition-all duration-200 ${
+                  isRecording 
+                    ? 'text-red-400 bg-red-500/20 animate-pulse' 
+                    : 'text-white/60 hover:text-white hover:bg-white/10'
+                }`}
+                title={isRecording ? "Stop recording" : "Voice message"}
+              >
+                <Mic className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Send Button */}
+          <button
+            type="submit"
+            disabled={!message.trim() || loading}
+            className={`p-3 rounded-xl transition-all duration-300 shadow-lg ${
+              message.trim() && !loading
+                ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 hover:scale-105 hover:shadow-xl'
+                : 'glass backdrop-blur-sm border border-white/20 text-white/40 cursor-not-allowed'
+            }`}
+            title="Send message"
+          >
+            <Send className="w-4 h-4" />
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }

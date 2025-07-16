@@ -30,8 +30,21 @@ const client = new OpenAI({
 
 // console.log(response);
 
-async function generateOpenAIPrompt(prompt: string, context?: string, isChained: boolean = false): Promise<string> {
+async function generateOpenAIPrompt(prompt: string, context?: string, isChained: boolean = false, imageContext?: string): Promise<string> {
   const messages = [];
+  
+  // Check if prompt contains image context
+  const hasImageContext = prompt.includes('[Image Context:') && prompt.includes(']');
+  let cleanPrompt = prompt;
+  let extractedImageContext = '';
+  
+  if (hasImageContext) {
+    const match = prompt.match(/\[Image Context: (.*?)\]/);
+    if (match) {
+      extractedImageContext = match[1];
+      cleanPrompt = prompt.replace(/\[Image Context: .*?\]/, '').trim();
+    }
+  }
   
   if (isChained && context) {
     messages.push({ 
@@ -70,7 +83,15 @@ Create content that is clear, educational, and easy for students to understand. 
     });
   }
   
-  messages.push({ role: 'user' as const, content: prompt });
+  // Add image context if available
+  if (extractedImageContext) {
+    messages.push({ 
+      role: 'user' as const, 
+      content: `Image Analysis: ${extractedImageContext}\n\nUser Question: ${cleanPrompt}` 
+    });
+  } else {
+    messages.push({ role: 'user' as const, content: cleanPrompt });
+  }
   
   const response = await client.chat.completions.create({
     model: 'gpt-4o-mini',
@@ -91,10 +112,10 @@ async function generateImage(prompt: string, context?: string, isChained: boolea
     
     if (isChained && context) {
       // For chained conversations, create a more contextual image prompt
-      imagePrompt = `Create a visual representation of: ${prompt}. Context: ${context}. Style: Educational, clear, colorful, suitable for learning materials. Important: Create a wide landscape image that fits properly in a 16:9 aspect ratio (1920x1080 equivalent) without any content being cut off. Ensure all elements are fully visible within the frame.`;
+      imagePrompt = `Create a visual representation and details explanation of: ${prompt}. Context: ${context}. Style: Educational, clear, colorful, suitable for learning materials. Important: Create a wide landscape image that fits properly in a 16:9 aspect ratio (1920x1080 equivalent) without any content being cut off. Ensure all elements are fully visible within the frame.`;
     } else {
       // For new conversations, enhance the prompt for better image generation
-      imagePrompt = `Create a visual representation of: ${prompt}. Style: Educational, clear, colorful, suitable for learning materials, scientific illustration. Important: Create a wide landscape image that fits properly in a 16:9 aspect ratio (1920x1080 equivalent) without any content being cut off. Ensure all elements are fully visible within the frame.`;
+      imagePrompt = `Create a visual representation and details explanation of: ${prompt}. Style: Educational, clear, colorful, suitable for learning materials, scientific illustration. Important: Create a wide landscape image that fits properly in a 16:9 aspect ratio (1920x1080 equivalent) without any content being cut off. Ensure all elements are fully visible within the frame.`;
     }
 
     console.log('Generating image with prompt:', imagePrompt);
