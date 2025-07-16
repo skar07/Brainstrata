@@ -17,36 +17,60 @@ import {
   Sparkles,
   Star,
   Zap,
-  Target
+  Target,
+  Play,
+  Clock,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
+import { mockCourses } from '@/data/courses';
+import type { Course } from '@/types/api';
+import CompactCatalog from './CompactCatalog';
 
 interface SidebarProps {
   isCollapsed?: boolean;
   setIsCollapsed?: (collapsed: boolean) => void;
+  onNavigate?: (section: string) => void;
+  currentSection?: string;
+  selectedCourse?: Course | null;
+  onLessonSelect?: (courseId: string, lessonId: string) => void;
 }
 
-export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollapsed: externalSetIsCollapsed }: SidebarProps = {}) {
+export default function Sidebar({ 
+  isCollapsed: externalIsCollapsed, 
+  setIsCollapsed: externalSetIsCollapsed,
+  onNavigate = () => {},
+  currentSection = 'dashboard',
+  selectedCourse,
+  onLessonSelect
+}: SidebarProps = {}) {
   const [internalIsCollapsed, setInternalIsCollapsed] = useState(false);
   
   const isCollapsed = externalIsCollapsed ?? internalIsCollapsed;
   const setIsCollapsed = externalSetIsCollapsed ?? setInternalIsCollapsed;
   const [hoveredItem, setHoveredItem] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [expandedCourse, setExpandedCourse] = useState<string | null>(null);
+
+  // Get featured courses (first 3 with some progress or newest)
+  const featuredCourses = mockCourses.slice(0, 3);
 
   const menuItems = [
     {
       icon: Home,
       label: 'Dashboard',
-      active: true,
+      active: currentSection === 'dashboard',
       color: 'from-blue-500 to-cyan-500',
       notifications: 0,
+      onClick: () => onNavigate('dashboard')
     },
     {
       icon: BookOpen,
-      label: 'Courses',
-      active: false,
+      label: 'Catalog',
+      active: currentSection === 'catalog',
       color: 'from-purple-500 to-pink-500',
       notifications: 3,
+      onClick: () => onNavigate('catalog')
     },
     {
       icon: Users,
@@ -54,6 +78,7 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
       active: false,
       color: 'from-green-500 to-emerald-500',
       notifications: 12,
+      onClick: () => onNavigate('community')
     },
     {
       icon: Award,
@@ -61,6 +86,7 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
       active: false,
       color: 'from-amber-500 to-orange-500',
       notifications: 1,
+      onClick: () => onNavigate('achievements')
     },
     {
       icon: TrendingUp,
@@ -68,6 +94,7 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
       active: false,
       color: 'from-indigo-500 to-purple-500',
       notifications: 0,
+      onClick: () => onNavigate('progress')
     },
     {
       icon: Calendar,
@@ -75,6 +102,7 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
       active: false,
       color: 'from-pink-500 to-rose-500',
       notifications: 2,
+      onClick: () => onNavigate('schedule')
     },
     {
       icon: MessageCircle,
@@ -82,6 +110,7 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
       active: false,
       color: 'from-teal-500 to-cyan-500',
       notifications: 5,
+      onClick: () => onNavigate('messages')
     },
     {
       icon: Settings,
@@ -89,6 +118,7 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
       active: false,
       color: 'from-slate-500 to-gray-600',
       notifications: 0,
+      onClick: () => onNavigate('settings')
     },
   ];
 
@@ -168,6 +198,89 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
         </div>
       )}
 
+      {/* Current Course Roadmap */}
+      {!isCollapsed && selectedCourse && currentSection === 'lesson' && (
+        <div className="px-3 mb-4 relative z-10">
+          <div className="space-y-2">
+            {/* Course Header */}
+            <div className="flex items-center gap-2 mb-3">
+              <div className={`w-6 h-6 bg-gradient-to-br ${selectedCourse.color} rounded-lg flex items-center justify-center shadow-lg`}>
+                <BookOpen className="w-3 h-3 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-xs font-semibold text-white truncate">
+                  {selectedCourse.title}
+                </h3>
+                <p className="text-xs text-white/60">{selectedCourse.category}</p>
+              </div>
+              <button
+                onClick={() => onNavigate?.('catalog')}
+                className="text-xs text-purple-400 hover:text-purple-300 transition-colors"
+              >
+                All
+              </button>
+            </div>
+
+            {/* Progress */}
+            <div className="mb-3">
+              <div className="flex items-center justify-between text-xs text-white/70 mb-1">
+                <span>Progress</span>
+                <span>{selectedCourse.lessons.filter(l => l.completed).length}/{selectedCourse.lessons.length}</span>
+              </div>
+              <div className="w-full bg-white/20 rounded-full h-1">
+                <div 
+                  className={`bg-gradient-to-r ${selectedCourse.color} h-1 rounded-full transition-all duration-500`}
+                  style={{ width: `${selectedCourse.progress || 0}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Lessons Roadmap */}
+            <div className="space-y-1 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+              {selectedCourse.lessons.map((lesson, index) => (
+                <button
+                  key={lesson.id}
+                  onClick={() => onLessonSelect?.(selectedCourse.id, lesson.id)}
+                  className="w-full text-left p-2 rounded bg-white/5 hover:bg-white/10 transition-colors group"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className={`w-3 h-3 rounded-full flex items-center justify-center ${
+                      lesson.completed 
+                        ? 'bg-green-500' 
+                        : 'bg-white/20 border border-white/30'
+                    }`}>
+                      {lesson.completed && <span className="text-white text-xs">✓</span>}
+                    </div>
+                    <span className="text-xs text-white/80 group-hover:text-white truncate">
+                      {lesson.order}. {lesson.title}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Catalog Section */}
+      {!isCollapsed && (!selectedCourse || currentSection !== 'lesson') && (
+        <div className="px-3 mb-4 relative z-10">
+          <CompactCatalog 
+            courses={mockCourses}
+            onCourseSelect={(courseId) => {
+              const course = mockCourses.find(c => c.id === courseId);
+              if (course && course.lessons.length > 0) {
+                onLessonSelect?.(courseId, course.lessons[0].id);
+              }
+            }}
+            onViewAllClick={() => onNavigate?.('catalog')}
+            selectedCourse={selectedCourse}
+            onLessonSelect={onLessonSelect}
+          />
+        </div>
+      )}
+
+
       {/* Navigation Menu */}
       <div className="flex-1 overflow-y-auto p-3 relative z-10">
         <div className="mb-4">
@@ -178,6 +291,7 @@ export default function Sidebar({ isCollapsed: externalIsCollapsed, setIsCollaps
             {menuItems.map((item, index) => (
               <button
                 key={index}
+                onClick={item.onClick}
                 onMouseEnter={() => setHoveredItem(index)}
                 onMouseLeave={() => setHoveredItem(null)}
                 className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-300 group relative overflow-hidden ${
