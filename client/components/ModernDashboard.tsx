@@ -70,6 +70,11 @@ import {
   Code
 } from 'lucide-react';
 import { useAuth } from '@/lib/stores/authStore';
+import { useGamificationStore } from '@/lib/stores/gamificationStore';
+import { PointsType } from '../types/gamification';
+import PointsTracker from './PointsTracker';
+import Leaderboard from './Leaderboard';
+import RewardSystem from './RewardSystem';
 
 // Learning-focused interfaces
 interface LearningMetric {
@@ -118,8 +123,18 @@ interface ImprovementData {
 
 const ModernDashboard: React.FC = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'progress' | 'leadership'>('overview');
+  const { addPoints, updateLeaderboard } = useGamificationStore();
+  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'progress' | 'leadership' | 'gamification' | 'leaderboard' | 'rewards'>('overview');
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
+
+  // Initialize leaderboard on component mount
+  React.useEffect(() => {
+    updateLeaderboard({
+      timeFrame: 'weekly',
+      scope: 'global',
+      limit: 50
+    });
+  }, [updateLeaderboard]);
 
   // Learning metrics data
   const learningMetrics: LearningMetric[] = [
@@ -130,9 +145,9 @@ const ModernDashboard: React.FC = () => {
       gradient: 'from-blue-500 to-blue-600',
       hoursCompleted: 45,
       progress: 78,
-      improvement: 12.5,
+      improvement: 13,
       coursesCompleted: 3,
-      skillLevel: 4.2
+      skillLevel: 4
     },
     {
       subject: 'Science',
@@ -141,9 +156,9 @@ const ModernDashboard: React.FC = () => {
       gradient: 'from-green-500 to-green-600',
       hoursCompleted: 38,
       progress: 65,
-      improvement: 8.3,
+      improvement: 8,
       coursesCompleted: 2,
-      skillLevel: 3.8
+      skillLevel: 4
     },
     {
       subject: 'Programming',
@@ -152,9 +167,9 @@ const ModernDashboard: React.FC = () => {
       gradient: 'from-purple-500 to-purple-600',
       hoursCompleted: 67,
       progress: 89,
-      improvement: 25.2,
+      improvement: 25,
       coursesCompleted: 4,
-      skillLevel: 4.7
+      skillLevel: 5
     },
     {
       subject: 'Language Arts',
@@ -163,9 +178,9 @@ const ModernDashboard: React.FC = () => {
       gradient: 'from-orange-500 to-orange-600',
       hoursCompleted: 29,
       progress: 54,
-      improvement: 7.1,
+      improvement: 7,
       coursesCompleted: 2,
-      skillLevel: 3.5
+      skillLevel: 4
     },
     {
       subject: 'History',
@@ -174,9 +189,9 @@ const ModernDashboard: React.FC = () => {
       gradient: 'from-red-500 to-red-600',
       hoursCompleted: 23,
       progress: 41,
-      improvement: 15.8,
+      improvement: 16,
       coursesCompleted: 1,
-      skillLevel: 3.2
+      skillLevel: 3
     }
   ];
 
@@ -189,7 +204,7 @@ const ModernDashboard: React.FC = () => {
       subject: 'Programming',
       status: 'completed',
       score: 94,
-      timeSpent: 3.5,
+      timeSpent: 4,
       completedAt: '2 hours ago'
     },
     {
@@ -199,7 +214,7 @@ const ModernDashboard: React.FC = () => {
       subject: 'Mathematics',
       status: 'completed',
       score: 87,
-      timeSpent: 0.5,
+      timeSpent: 1,
       completedAt: '1 day ago'
     },
     {
@@ -208,7 +223,7 @@ const ModernDashboard: React.FC = () => {
       title: 'Machine Learning Project',
       subject: 'Programming',
       status: 'in-progress',
-      timeSpent: 8.2,
+      timeSpent: 8,
       dueDate: 'Tomorrow'
     },
     {
@@ -228,7 +243,7 @@ const ModernDashboard: React.FC = () => {
       id: '1',
       name: user?.name || 'You',
       score: 1847,
-      improvement: 12.5,
+      improvement: 13,
       rank: 1,
       category: 'Overall',
       avatar: user?.name?.charAt(0) || 'U'
@@ -237,7 +252,7 @@ const ModernDashboard: React.FC = () => {
       id: '2',
       name: 'Sarah Johnson',
       score: 1823,
-      improvement: 8.3,
+      improvement: 8,
       rank: 2,
       category: 'Overall',
       avatar: 'S'
@@ -246,7 +261,7 @@ const ModernDashboard: React.FC = () => {
       id: '3',
       name: 'Mike Chen',
       score: 1799,
-      improvement: 15.7,
+      improvement: 16,
       rank: 3,
       category: 'Overall',
       avatar: 'M'
@@ -255,7 +270,7 @@ const ModernDashboard: React.FC = () => {
       id: '4',
       name: 'Emma Davis',
       score: 1776,
-      improvement: 5.2,
+      improvement: 5,
       rank: 4,
       category: 'Overall',
       avatar: 'E'
@@ -264,7 +279,7 @@ const ModernDashboard: React.FC = () => {
       id: '5',
       name: 'Alex Rodriguez',
       score: 1752,
-      improvement: 22.1,
+      improvement: 22,
       rank: 5,
       category: 'Overall',
       avatar: 'A'
@@ -273,13 +288,13 @@ const ModernDashboard: React.FC = () => {
 
   // Improvement data for simple charts
   const improvementData: ImprovementData[] = [
-    { date: '2024-01-01', overallScore: 65, mathScore: 70, scienceScore: 60, languageScore: 65, programmingScore: 75, studyTime: 2.5 },
-    { date: '2024-01-08', overallScore: 68, mathScore: 72, scienceScore: 64, languageScore: 67, programmingScore: 78, studyTime: 3.2 },
-    { date: '2024-01-15', overallScore: 71, mathScore: 75, scienceScore: 68, languageScore: 69, programmingScore: 82, studyTime: 3.8 },
-    { date: '2024-01-22', overallScore: 74, mathScore: 78, scienceScore: 72, languageScore: 71, programmingScore: 85, studyTime: 4.1 },
-    { date: '2024-01-29', overallScore: 77, mathScore: 81, scienceScore: 75, languageScore: 74, programmingScore: 88, studyTime: 4.5 },
-    { date: '2024-02-05', overallScore: 80, mathScore: 84, scienceScore: 78, languageScore: 77, programmingScore: 91, studyTime: 5.0 },
-    { date: '2024-02-12', overallScore: 83, mathScore: 87, scienceScore: 81, languageScore: 80, programmingScore: 94, studyTime: 5.3 }
+    { date: '2024-01-01', overallScore: 65, mathScore: 70, scienceScore: 60, languageScore: 65, programmingScore: 75, studyTime: 3 },
+    { date: '2024-01-08', overallScore: 68, mathScore: 72, scienceScore: 64, languageScore: 67, programmingScore: 78, studyTime: 3 },
+    { date: '2024-01-15', overallScore: 71, mathScore: 75, scienceScore: 68, languageScore: 69, programmingScore: 82, studyTime: 4 },
+    { date: '2024-01-22', overallScore: 74, mathScore: 78, scienceScore: 72, languageScore: 71, programmingScore: 85, studyTime: 4 },
+    { date: '2024-01-29', overallScore: 77, mathScore: 81, scienceScore: 75, languageScore: 74, programmingScore: 88, studyTime: 5 },
+    { date: '2024-02-05', overallScore: 80, mathScore: 84, scienceScore: 78, languageScore: 77, programmingScore: 91, studyTime: 5 },
+    { date: '2024-02-12', overallScore: 83, mathScore: 87, scienceScore: 81, languageScore: 80, programmingScore: 94, studyTime: 5 }
   ];
 
   // Pie chart data for learning categories
@@ -547,20 +562,23 @@ const ModernDashboard: React.FC = () => {
                 <option value="90d">Last 90 days</option>
                 <option value="1y">Last year</option>
               </select>
-              <button className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center space-x-2">
+              {/* <button className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center space-x-2">
                 <Download className="w-4 h-4" />
                 <span>Export Report</span>
-              </button>
+              </button> */}
             </div>
           </div>
 
           {/* Tab Navigation */}
-          <div className="flex space-x-8 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex space-x-8 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
             {[
               { id: 'overview', label: 'Overview', icon: BarChart3 },
               { id: 'analytics', label: 'Analytics', icon: LineChart },
               { id: 'progress', label: 'Progress', icon: TrendingUp },
-              { id: 'leadership', label: 'Leadership', icon: Trophy }
+              // { id: 'leadership', label: 'Leadership', icon: Trophy },
+              { id: 'gamification', label: 'Points', icon: Star },
+              { id: 'leaderboard', label: 'Leaderboard', icon: Users },
+              { id: 'rewards', label: 'Rewards', icon: Award }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -657,7 +675,7 @@ const ModernDashboard: React.FC = () => {
                     </div>
                     <div className="space-y-1">
                       <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                        {(learningMetrics.reduce((sum, metric) => sum + metric.skillLevel, 0) / learningMetrics.length).toFixed(1)}
+                        {Math.round(learningMetrics.reduce((sum, metric) => sum + metric.skillLevel, 0) / learningMetrics.length)}
                       </p>
                       <p className="text-sm text-gray-500 dark:text-gray-400">Avg. Skill Level</p>
                     </div>
@@ -668,7 +686,7 @@ const ModernDashboard: React.FC = () => {
                 <motion.div variants={itemVariants} className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Learning Distribution</h3>
-                    <PieChart className="w-5 h-5 text-gray-500" />
+                    <PieChart className="w-5 h-5 text-red-500 " />
                   </div>
                   <SimplePieChart data={learningCategoryData} title="Time Distribution by Subject" />
                 </motion.div>
@@ -698,7 +716,7 @@ const ModernDashboard: React.FC = () => {
                             metric.improvement > 0 ? 'text-green-500' : 'text-red-500'
                           }`}>
                             {metric.improvement > 0 ? <ArrowUp className="w-4 h-4 mr-1" /> : <ArrowDown className="w-4 h-4 mr-1" />}
-                            {Math.abs(metric.improvement)}%
+                            {Math.round(Math.abs(metric.improvement))}%
                           </div>
                         </div>
                         <div className="space-y-2">
@@ -715,7 +733,7 @@ const ModernDashboard: React.FC = () => {
                           <div className="grid grid-cols-2 gap-2 text-sm">
                             <div>
                               <p className="text-gray-500 dark:text-gray-400">Skill Level</p>
-                              <p className="font-medium text-gray-900 dark:text-white">{metric.skillLevel}/5</p>
+                              <p className="font-medium text-gray-900 dark:text-white">{Math.round(metric.skillLevel)}/5</p>
                             </div>
                             <div>
                               <p className="text-gray-500 dark:text-gray-400">Courses</p>
@@ -732,10 +750,10 @@ const ModernDashboard: React.FC = () => {
                 <motion.div variants={itemVariants} className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Activities</h3>
-                    <button className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center space-x-2">
+                    {/* <button className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center space-x-2">
                       <Plus className="w-4 h-4" />
                       <span>New Activity</span>
-                    </button>
+                    </button> */}
                   </div>
                   <div className="space-y-4">
                     {recentActivities.map((activity) => (
@@ -949,7 +967,7 @@ const ModernDashboard: React.FC = () => {
                   <SimpleBarChart 
                     data={learningMetrics.map(metric => ({ 
                       name: metric.subject, 
-                      value: (metric.skillLevel / 5) * 100, 
+                      value: Math.round((metric.skillLevel / 5) * 100), 
                       gradient: metric.gradient 
                     }))} 
                     title="Skill Level by Subject" 
@@ -965,7 +983,7 @@ const ModernDashboard: React.FC = () => {
                   <SimpleBarChart 
                     data={learningMetrics.map(metric => ({ 
                       name: metric.subject, 
-                      value: (metric.hoursCompleted / Math.max(...learningMetrics.map(m => m.hoursCompleted))) * 100, 
+                      value: Math.round((metric.hoursCompleted / Math.max(...learningMetrics.map(m => m.hoursCompleted))) * 100), 
                       gradient: metric.gradient 
                     }))} 
                     title="Hours Completed by Subject" 
@@ -1033,7 +1051,7 @@ const ModernDashboard: React.FC = () => {
                               leader.improvement > 0 ? 'text-green-500' : 'text-red-500'
                             }`}>
                               {leader.improvement > 0 ? <ArrowUp className="w-4 h-4 mr-1" /> : <ArrowDown className="w-4 h-4 mr-1" />}
-                              {Math.abs(leader.improvement)}%
+                              {Math.round(Math.abs(leader.improvement))}%
                             </div>
                           </div>
                         </div>
@@ -1051,11 +1069,67 @@ const ModernDashboard: React.FC = () => {
                   <SimpleBarChart 
                     data={leadershipData.map(leader => ({ 
                       name: leader.name, 
-                      value: (leader.score / Math.max(...leadershipData.map(l => l.score))) * 100, 
+                      value: Math.round((leader.score / Math.max(...leadershipData.map(l => l.score))) * 100), 
                       gradient: 'from-purple-500 to-pink-500' 
                     }))} 
                     title="Leadership Score Comparison" 
                   />
+                </motion.div>
+              </div>
+            )}
+
+            {activeTab === 'gamification' && (
+              <div className="space-y-8">
+                {/* Points Overview */}
+                <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-2">
+                    <PointsTracker />
+                  </div>
+                  <div className="space-y-6">
+                    <PointsTracker compact={true} />
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h3>
+                      <div className="space-y-3">
+                        <button
+                          onClick={() => addPoints(PointsType.INTERACTIVE_ACTIVITY, 'quiz_completed', 50, 'Completed practice quiz')}
+                          className="w-full bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-4 py-3 rounded-lg text-left transition-colors"
+                        >
+                          <div className="font-medium">Complete Quiz</div>
+                          <div className="text-sm opacity-80">+50 points</div>
+                        </button>
+                        <button
+                          onClick={() => addPoints(PointsType.CONTENT_GENERATION, 'content_generated', 25, 'Generated new content')}
+                          className="w-full bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/40 text-green-700 dark:text-green-300 px-4 py-3 rounded-lg text-left transition-colors"
+                        >
+                          <div className="font-medium">Generate Content</div>
+                          <div className="text-sm opacity-80">+25 points</div>
+                        </button>
+                        <button
+                          onClick={() => addPoints(PointsType.ROADMAP_PROGRESS, 'module_completed', 100, 'Completed learning module')}
+                          className="w-full bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/40 text-purple-700 dark:text-purple-300 px-4 py-3 rounded-lg text-left transition-colors"
+                        >
+                          <div className="font-medium">Complete Module</div>
+                          <div className="text-sm opacity-80">+100 points</div>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+
+            {activeTab === 'leaderboard' && (
+              <div className="space-y-8">
+                <motion.div variants={itemVariants}>
+                  <Leaderboard />
+                </motion.div>
+              </div>
+            )}
+
+            {activeTab === 'rewards' && (
+              <div className="space-y-8">
+                <motion.div variants={itemVariants}>
+                  <RewardSystem />
                 </motion.div>
               </div>
             )}
