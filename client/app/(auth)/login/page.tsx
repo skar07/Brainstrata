@@ -1,72 +1,168 @@
-import { Metadata } from 'next';
-import { AuthForm } from '@/components/AuthForm';
-import { Sparkles, Star, Zap } from 'lucide-react';
+'use client';
 
-export const metadata: Metadata = {
-  title: 'Login | Brainstrata',
-  description: 'Sign in to your account',
-};
+import { PublicRoute } from '@/components/AuthGuard';
+import { AuthForm } from '@/components/AuthForm';
+import { Sparkles, Shield, Zap, Brain, Users, TrendingUp } from 'lucide-react';
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Enhanced Animated Background */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-purple-500 via-pink-500 to-violet-600 rounded-full mix-blend-multiply filter blur-2xl opacity-60 animate-blob"></div>
-        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-br from-blue-500 via-cyan-500 to-teal-600 rounded-full mix-blend-multiply filter blur-2xl opacity-60 animate-blob animation-delay-2000"></div>
-        <div className="absolute top-40 left-40 w-80 h-80 bg-gradient-to-br from-pink-500 via-rose-500 to-orange-500 rounded-full mix-blend-multiply filter blur-2xl opacity-50 animate-blob animation-delay-4000"></div>
-        
-        {/* Floating Stars */}
-        <div className="absolute top-1/4 left-1/4 text-white/20 animate-pulse">
-          <Star className="w-6 h-6" />
+    <PublicRoute>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex items-center justify-center px-4 py-8 relative overflow-hidden">
+        {/* Animated Background Elements */}
+        <div className="absolute inset-0 overflow-hidden">
+          {/* Large gradient orbs */}
+          <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-blue-400/30 to-purple-500/30 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-br from-purple-400/30 to-pink-500/30 rounded-full blur-3xl animate-pulse animation-delay-2000"></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-gradient-to-br from-cyan-400/20 to-blue-500/20 rounded-full blur-3xl animate-pulse animation-delay-4000"></div>
+          
+          {/* Floating particles */}
+          <div className="absolute top-20 left-20 w-2 h-2 bg-blue-400/60 rounded-full animate-float"></div>
+          <div className="absolute top-40 right-32 w-1 h-1 bg-purple-400/60 rounded-full animate-float animation-delay-1000"></div>
+          <div className="absolute bottom-32 left-1/3 w-1.5 h-1.5 bg-cyan-400/60 rounded-full animate-float animation-delay-2000"></div>
+          <div className="absolute top-3/4 right-1/4 w-1 h-1 bg-pink-400/60 rounded-full animate-float animation-delay-3000"></div>
         </div>
-        <div className="absolute top-1/3 right-1/3 text-white/20 animate-pulse animation-delay-2000">
-          <Sparkles className="w-4 h-4" />
-        </div>
-        <div className="absolute bottom-1/4 right-1/4 text-white/20 animate-pulse animation-delay-4000">
-          <Zap className="w-5 h-5" />
-        </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="relative z-10 w-full max-w-md">
-        {/* Brand Header */}
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-purple-500 via-pink-500 to-violet-600 rounded-2xl flex items-center justify-center shadow-2xl animate-pulse">
-              <Sparkles className="w-8 h-8 text-white" />
+        {/* Grid pattern overlay */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:50px_50px]"></div>
+
+        {/* Main Content Container */}
+        <div className="relative z-10 w-full max-w-6xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
+          
+          {/* Left Side - Branding & Features */}
+          <div className="hidden lg:block space-y-8">
+            {/* Brand Header */}
+            <div className="space-y-6">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-2xl">
+                  <Brain className="w-7 h-7 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                    Brainstrata
+                  </h1>
+                  <p className="text-blue-200/80 text-lg font-medium">
+                    Next-Generation Learning Platform
+                  </p>
+                </div>
+              </div>
+              
+              <p className="text-xl text-blue-100/90 leading-relaxed">
+                Transform your learning experience with AI-powered insights, personalized pathways, and collaborative tools designed for the future of education.
+              </p>
+            </div>
+
+            {/* Feature Grid */}
+            <div className="grid grid-cols-2 gap-6">
+              <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6 hover:bg-white/15 transition-all duration-300 group">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <Brain className="w-5 h-5 text-white" />
+                </div>
+                <h3 className="text-white font-semibold mb-2">AI-Powered Learning</h3>
+                <p className="text-blue-200/70 text-sm">Intelligent content adaptation based on your learning style and progress.</p>
+              </div>
+              
+              <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6 hover:bg-white/15 transition-all duration-300 group">
+                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <Users className="w-5 h-5 text-white" />
+                </div>
+                <h3 className="text-white font-semibold mb-2">Collaborative Space</h3>
+                <p className="text-blue-200/70 text-sm">Connect with peers, share insights, and learn together in real-time.</p>
+              </div>
+              
+              <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6 hover:bg-white/15 transition-all duration-300 group">
+                <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <TrendingUp className="w-5 h-5 text-white" />
+                </div>
+                <h3 className="text-white font-semibold mb-2">Progress Analytics</h3>
+                <p className="text-blue-200/70 text-sm">Detailed insights into your learning journey and achievement patterns.</p>
+              </div>
+              
+              <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6 hover:bg-white/15 transition-all duration-300 group">
+                <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <Zap className="w-5 h-5 text-white" />
+                </div>
+                <h3 className="text-white font-semibold mb-2">Instant Support</h3>
+                <p className="text-blue-200/70 text-sm">24/7 AI assistant ready to help with concepts, explanations, and guidance.</p>
+              </div>
+            </div>
+
+            {/* Stats */}
+            <div className="flex items-center space-x-8 pt-6">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-white">50K+</div>
+                <div className="text-blue-200/70 text-sm">Active Learners</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-white">1M+</div>
+                <div className="text-blue-200/70 text-sm">Lessons Completed</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-white">98%</div>
+                <div className="text-blue-200/70 text-sm">Success Rate</div>
+              </div>
             </div>
           </div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-violet-300 bg-clip-text text-transparent mb-2">
-            BrainStrata
-          </h1>
-          <p className="text-white/70 text-sm font-medium">Learning Platform</p>
-        </div>
 
-        {/* Auth Form Container */}
-        <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-8 relative overflow-hidden">
-          {/* Subtle gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-50/50 via-transparent to-pink-50/50 rounded-3xl"></div>
-          
-          <div className="relative z-10">
-            <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Welcome Back
-              </h2>
-              <p className="text-gray-600 text-sm">
-                Sign in to continue your learning journey
+          {/* Right Side - Login Form */}
+          <div className="w-full max-w-md mx-auto lg:mx-0">
+            {/* Mobile Header */}
+            <div className="lg:hidden text-center mb-8">
+              <div className="flex items-center justify-center space-x-3 mb-4">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-2xl">
+                  <Brain className="w-6 h-6 text-white" />
+                </div>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                  Brainstrata
+                </h1>
+              </div>
+              <p className="text-blue-200/80 text-lg">
+                Your intelligent learning platform
               </p>
             </div>
             
             <AuthForm type="login" />
+            
+            {/* Additional Links */}
+            <div className="mt-8 space-y-4">
+              <div className="flex items-center justify-center space-x-6 text-sm text-blue-200/70">
+                <a href="#" className="hover:text-blue-200 transition-colors flex items-center space-x-1">
+                  <Shield className="w-4 h-4" />
+                  <span>Privacy Policy</span>
+                </a>
+                <span>•</span>
+                <a href="#" className="hover:text-blue-200 transition-colors">Terms of Service</a>
+                <span>•</span>
+                <a href="#" className="hover:text-blue-200 transition-colors">Help Center</a>
+              </div>
+              
+              <div className="text-center">
+                <p className="text-blue-200/60 text-sm">
+                  © 2024 Brainstrata. All rights reserved.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="text-center mt-6 text-white/60 text-sm">
-          <p>Secure and encrypted authentication</p>
+        {/* Floating Action Elements */}
+        <div className="absolute top-8 right-8 hidden xl:block">
+          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 shadow-2xl">
+            <div className="flex items-center space-x-3">
+              <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+              <span className="text-white/90 text-sm font-medium">System Online</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="absolute bottom-8 left-8 hidden xl:block">
+          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 shadow-2xl">
+            <div className="flex items-center space-x-3">
+              <Sparkles className="w-4 h-4 text-yellow-400" />
+              <span className="text-white/90 text-sm font-medium">New Features Available</span>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </PublicRoute>
   );
 } 
