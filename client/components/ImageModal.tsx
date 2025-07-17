@@ -38,15 +38,6 @@ export default function ImageModal({ isOpen, onClose, imageUrl, imageAnalysis }:
           className="max-h-[85vh] w-auto rounded-lg shadow-2xl border-2 border-white/20"
           style={{ objectFit: 'contain' }}
         />
-
-        {/* Image Analysis */}
-        {imageAnalysis && (
-          <div className="mt-6 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 p-4 max-w-2xl w-full">
-            <p className="text-sm text-white/90 leading-relaxed">
-              {imageAnalysis}
-            </p>
-          </div>
-        )}
       </div>
     </div>,
     document.body
