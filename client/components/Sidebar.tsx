@@ -1,15 +1,15 @@
 'use client';
 
-import React, { useState } from 'react';
-import {
-  Home,
-  BookOpen,
-  Users,
-  Settings,
-  ChevronLeft,
-  ChevronRight,
-  Award,
-  TrendingUp,
+import { useState } from 'react';
+import { 
+  Home, 
+  BookOpen, 
+  Users, 
+  Settings, 
+  ChevronLeft, 
+  ChevronRight, 
+  Award, 
+  TrendingUp, 
   Calendar,
   MessageCircle,
   Bell,
@@ -26,7 +26,6 @@ import {
 import { mockCourses } from '@/data/courses';
 import type { Course } from '@/types/api';
 import CompactCatalog from './CompactCatalog';
-import RoadmapGenerator from './RoadmapGenerator';
 
 interface SidebarProps {
   isCollapsed?: boolean;
@@ -37,24 +36,22 @@ interface SidebarProps {
   onLessonSelect?: (courseId: string, lessonId: string) => void;
 }
 
-export default function Sidebar({
-  isCollapsed: externalIsCollapsed,
+export default function Sidebar({ 
+  isCollapsed: externalIsCollapsed, 
   setIsCollapsed: externalSetIsCollapsed,
-  onNavigate = () => { },
+  onNavigate = () => {},
   currentSection = 'dashboard',
   selectedCourse,
   onLessonSelect
 }: SidebarProps = {}) {
   const [internalIsCollapsed, setInternalIsCollapsed] = useState(false);
-
+  
   const isCollapsed = externalIsCollapsed ?? internalIsCollapsed;
   const setIsCollapsed = externalSetIsCollapsed ?? setInternalIsCollapsed;
   const [hoveredItem, setHoveredItem] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedCourse, setExpandedCourse] = useState<string | null>(null);
 
-  // Add this state for the learning path section
-  const [isCatalogCollapsed, setIsCatalogCollapsed] = useState(false);
   // Get featured courses (first 3 with some progress or newest)
   const featuredCourses = mockCourses.slice(0, 3);
 
@@ -85,7 +82,7 @@ export default function Sidebar({
     },
     {
       icon: Award,
-      label: 'Roadmap',
+      label: 'Achievements',
       active: false,
       color: 'from-amber-500 to-orange-500',
       notifications: 1,
@@ -137,7 +134,7 @@ export default function Sidebar({
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-20 left-1/2 transform -translate-x-1/2 w-40 h-40 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 w-32 h-32 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-full blur-2xl animate-pulse animation-delay-2000"></div>
-
+        
         {/* Floating Sparkles */}
         <div className="absolute top-24 right-4 text-white/10 animate-pulse">
           <Sparkles className="w-4 h-4" />
@@ -149,7 +146,7 @@ export default function Sidebar({
 
       {/* Header - Clickable Logo */}
       <div className={`p-4 border-b border-white/10 relative z-10 ${isCollapsed ? 'px-3' : ''}`}>
-        <div
+        <div 
           className={`flex items-center gap-2 ${isCollapsed ? 'justify-center' : ''} cursor-pointer hover:scale-105 transition-all duration-300`}
           onClick={() => setIsCollapsed(!isCollapsed)}
           title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
@@ -231,7 +228,7 @@ export default function Sidebar({
                 <span>{selectedCourse.lessons.filter(l => l.completed).length}/{selectedCourse.lessons.length}</span>
               </div>
               <div className="w-full bg-white/20 rounded-full h-1">
-                <div
+                <div 
                   className={`bg-gradient-to-r ${selectedCourse.color} h-1 rounded-full transition-all duration-500`}
                   style={{ width: `${selectedCourse.progress || 0}%` }}
                 />
@@ -247,10 +244,11 @@ export default function Sidebar({
                   className="w-full text-left p-2 rounded bg-white/5 hover:bg-white/10 transition-colors group"
                 >
                   <div className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded-full flex items-center justify-center ${lesson.completed
-                        ? 'bg-green-500'
+                    <div className={`w-3 h-3 rounded-full flex items-center justify-center ${
+                      lesson.completed 
+                        ? 'bg-green-500' 
                         : 'bg-white/20 border border-white/30'
-                      }`}>
+                    }`}>
                       {lesson.completed && <span className="text-white text-xs">✓</span>}
                     </div>
                     <span className="text-xs text-white/80 group-hover:text-white truncate">
@@ -265,38 +263,23 @@ export default function Sidebar({
       )}
 
       {/* Catalog Section */}
-      <div className="px-3 mb-4 relative z-10">
-        {/* Toggle header */}
-        <button
-          onClick={() => setIsCatalogCollapsed(!isCatalogCollapsed)}
-          className="w-full flex items-center justify-between text-xs text-white/70 hover:text-white bg-white/5 p-2 rounded transition"
-        >
-          <span>Catalog</span>
-          {isCatalogCollapsed ? (
-            <ChevronDown className="w-4 h-4" />
-          ) : (
-            <ChevronUp className="w-4 h-4" />
-          )}
-        </button>
+      {!isCollapsed && (!selectedCourse || currentSection !== 'lesson') && (
+        <div className="px-3 mb-4 relative z-10">
+          <CompactCatalog 
+            courses={mockCourses}
+            onCourseSelect={(courseId) => {
+              const course = mockCourses.find(c => c.id === courseId);
+              if (course && course.lessons.length > 0) {
+                onLessonSelect?.(courseId, course.lessons[0].id);
+              }
+            }}
+            onViewAllClick={() => onNavigate?.('catalog')}
+            selectedCourse={selectedCourse}
+            onLessonSelect={onLessonSelect}
+          />
+        </div>
+      )}
 
-        {/* Collapsible content */}
-        {!isCatalogCollapsed && (
-          <div className="mt-2 transition-all duration-300">
-            <CompactCatalog
-              courses={mockCourses}
-              onCourseSelect={(courseId) => {
-                const course = mockCourses.find(c => c.id === courseId);
-                if (course && course.lessons.length > 0) {
-                  onLessonSelect?.(courseId, course.lessons[0].id);
-                }
-              }}
-              onViewAllClick={() => onNavigate?.('catalog')}
-              selectedCourse={selectedCourse}
-              onLessonSelect={onLessonSelect}
-            />
-          </div>
-        )}
-      </div>
 
       {/* Navigation Menu */}
       <div className="flex-1 overflow-y-auto p-3 relative z-10">
@@ -311,25 +294,28 @@ export default function Sidebar({
                 onClick={item.onClick}
                 onMouseEnter={() => setHoveredItem(index)}
                 onMouseLeave={() => setHoveredItem(null)}
-                className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-300 group relative overflow-hidden ${item.active
+                className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-300 group relative overflow-hidden ${
+                  item.active
                     ? 'bg-gradient-to-r from-purple-500/30 to-pink-500/30 text-white border border-purple-500/50 shadow-lg'
                     : 'text-white/70 hover:bg-white/10 hover:text-white'
-                  } ${isCollapsed ? 'justify-center' : ''}`}
+                } ${isCollapsed ? 'justify-center' : ''}`}
               >
                 {/* Hover effect background */}
                 <div className={`absolute inset-0 bg-gradient-to-r ${item.color} opacity-0 group-hover:opacity-20 transition-opacity duration-300 rounded-lg`} />
-
+                
                 {/* Icon container */}
-                <div className={`w-5 h-5 flex items-center justify-center rounded transition-all duration-300 ${item.active
-                    ? `bg-gradient-to-r ${item.color} shadow-lg`
+                <div className={`w-5 h-5 flex items-center justify-center rounded transition-all duration-300 ${
+                  item.active 
+                    ? `bg-gradient-to-r ${item.color} shadow-lg` 
                     : 'group-hover:bg-white/20'
-                  }`}>
-                  <item.icon className={`w-3 h-3 transition-all duration-300 ${item.active
-                      ? 'text-white'
+                }`}>
+                  <item.icon className={`w-3 h-3 transition-all duration-300 ${
+                    item.active 
+                      ? 'text-white' 
                       : 'text-white/70 group-hover:text-white group-hover:scale-110'
-                    }`} />
+                  }`} />
                 </div>
-
+                
                 {!isCollapsed && (
                   <>
                     <span className="flex-1 text-left font-medium text-sm">{item.label}</span>
