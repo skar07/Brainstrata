@@ -20,6 +20,7 @@ interface ChatbotProps {
   onNewGeneratedContent?: (sections: GeneratedSection[]) => void;
   onGeneratingStateChange?: (generating: boolean) => void;
   onChainUpdate?: (chain: PromptChain) => void;
+  onPromptUpdate?: (prompt: string) => void;
 }
 
 // Consistent timestamp formatting function
@@ -57,7 +58,8 @@ export default function Chatbot({
   setIsCollapsed: externalSetIsCollapsed,
   onNewGeneratedContent,
   onGeneratingStateChange,
-  onChainUpdate
+  onChainUpdate,
+  onPromptUpdate
 }: ChatbotProps = {}) {
   const [messages, setMessages] = useState<Message[]>([
     {
