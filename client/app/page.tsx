@@ -8,11 +8,11 @@ import Chatbot from '@/components/Chatbot';
 import CourseList from '@/components/CourseList';
 import MainCatalogView from '@/components/MainCatalogView';
 import LessonView from '@/components/LessonView';
-import { Menu, X, Sparkles, Star, Zap } from 'lucide-react';
+import { Menu, X, Sparkles, Star, Zap, Bot } from 'lucide-react';
 import type { GeneratedSection, Course, Lesson } from '@/types/api';
 import { PromptChain } from '@/components/promptchaining';
 import { mockCourses, getCourseById, getLessonById } from '@/data/courses';
-
+import RoadmapGenerator from '@/components/RoadmapGenerator';
 
 export default function Home() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -123,6 +123,10 @@ export default function Home() {
             onCourseSelect={handleCourseSelect}
           />
         );
+        case 'achievements':
+          return (
+            <RoadmapGenerator/>
+          );  
       case 'lesson':
         if (!selectedCourse || !selectedLesson) {
           return <div>Loading...</div>;
@@ -261,15 +265,28 @@ export default function Home() {
       </div>
 
       {/* Enhanced Desktop Chatbot - Fixed Position */}
-      <div className="hidden lg:block fixed top-0 right-0 z-20">
-        <Chatbot 
-        onNewGeneratedContent={handleNewGeneratedContent}
-        onGeneratingStateChange={handleGeneratingStateChange}
-        onChainUpdate={handleChainUpdate}
-        onPromptUpdate={handlePromptUpdate}
-          isCollapsed={isChatbotCollapsed}
-          setIsCollapsed={setIsChatbotCollapsed}
-        />
+      <div className="hidden lg:block fixed bottom-0 right-0 z-20">
+        {isChatbotCollapsed ? (
+          // Collapsed: show a floating icon/button
+          <button
+            className="m-4 p-3 rounded-full bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 shadow-lg hover:scale-110 transition-all"
+            onClick={() => setIsChatbotCollapsed(false)}
+            title="Open Chatbot"
+          >
+            {/* You can use any icon, e.g., a chat bubble or robot */}
+            <Bot className="w-7 h-7 text-white" />
+          </button>
+        ) : (
+          // Expanded: show the full Chatbot
+          <Chatbot 
+            onNewGeneratedContent={handleNewGeneratedContent}
+            onGeneratingStateChange={handleGeneratingStateChange}
+            onChainUpdate={handleChainUpdate}
+            onPromptUpdate={handlePromptUpdate}
+            isCollapsed={isChatbotCollapsed}
+            setIsCollapsed={setIsChatbotCollapsed}
+          />
+        )}
       </div>
 
       {/* Enhanced Mobile Chatbot */}
