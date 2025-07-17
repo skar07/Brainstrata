@@ -86,6 +86,10 @@ Create content that is clear, educational, and easy for students to understand. 
   // Add image context if available
   if (extractedImageContext) {
     messages.push({ 
+      role: 'system' as const, 
+      content: `You are an expert image analyzer and educational AI assistant. When analyzing images, you must answer questions based ONLY on what is visible in the image. Do not use outside knowledge unless it's directly related to what you can see in the image. If you cannot determine something from the image, say so clearly.` 
+    });
+    messages.push({ 
       role: 'user' as const, 
       content: `Image Analysis: ${extractedImageContext}\n\nUser Question: ${cleanPrompt}` 
     });

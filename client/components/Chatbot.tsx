@@ -6,6 +6,8 @@ import { Bot, User, ChevronLeft, Copy, ThumbsUp, ThumbsDown, Sparkles, MessageCi
 import type { GeneratedSection } from '../types/api';
 import { PromptChain } from './promptchaining';
 import ImagePromptHandler from '../lib/imagePromptHandler';
+import ImageUploadBox from './ImageUploadBox';
+import ImageModal from './ImageModal';
 
 interface Message {
   id: string;
@@ -77,6 +79,7 @@ export default function Chatbot({
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [imageAnalysis, setImageAnalysis] = useState<string | null>(null);
   const promptChainRef = useRef<PromptChain | null>(null);
+  const [showImageModal, setShowImageModal] = useState(false);
   
   const isCollapsed = externalIsCollapsed ?? internalIsCollapsed;
   const setIsCollapsed = externalSetIsCollapsed ?? setInternalIsCollapsed;
@@ -315,113 +318,16 @@ export default function Chatbot({
         </div>
       )}
 
-      {/* Mode Toggle - Fixed */}
+      {/* Only show regular chat UI, no image mode toggle or upload box */}
       {!isCollapsed && (
-        <div className="flex-shrink-0 p-3 border-b border-white/10 bg-gradient-to-r from-green-500/10 to-blue-500/10 relative z-10">
-          <div className="flex items-center justify-between mb-3">
+        <>
+          {/* Mode label only */}
+          <div className="flex-shrink-0 p-3 border-b border-white/10 bg-gradient-to-r from-green-500/10 to-blue-500/10 relative z-10">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full animate-pulse"></div>
               <p className="text-xs text-white/80 font-semibold">Chat Mode</p>
             </div>
-            <div className="flex items-center gap-2">
-              <span className={`text-xs font-medium transition-colors duration-300 ${
-                !isImageMode ? 'text-white' : 'text-white/50'
-              }`}>Text</span>
-              <button
-                onClick={() => {
-                  setIsImageMode(!isImageMode);
-                  // Clear image state when switching to text mode
-                  if (isImageMode) {
-                    setUploadedImage(null);
-                    setImageAnalysis(null);
-                  }
-                }}
-                className={`relative w-12 h-6 rounded-full transition-all duration-300 shadow-lg ${
-                  isImageMode 
-                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 shadow-purple-500/30' 
-                    : 'bg-white/20 shadow-white/10'
-                }`}
-                title={isImageMode ? "Switch to text mode" : "Switch to image mode"}
-              >
-                <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all duration-300 shadow-md ${
-                  isImageMode ? 'right-0.5' : 'left-0.5'
-                }`} />
-              </button>
-              <span className={`text-xs font-medium transition-colors duration-300 ${
-                isImageMode ? 'text-white' : 'text-white/50'
-              }`}>Image</span>
-            </div>
           </div>
-          
-          {/* Image Upload Area */}
-          {isImageMode && (
-            <div className="space-y-3">
-              {!uploadedImage ? (
-                <div className="relative group">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleImageUpload(file);
-                    }}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    id="image-upload"
-                  />
-                  <label
-                    htmlFor="image-upload"
-                    className="flex flex-col items-center justify-center gap-2 p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-2 border-dashed border-purple-300/30 rounded-xl cursor-pointer hover:from-purple-500/20 hover:to-pink-500/20 hover:border-purple-300/50 transition-all duration-300 group-hover:scale-[1.02]"
-                  >
-                    <div className="w-8 h-8 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-lg flex items-center justify-center">
-                      <Upload className="w-4 h-4 text-purple-300" />
-                    </div>
-                    <div className="text-center">
-                      <p className="text-xs text-purple-300 font-medium">Upload Image</p>
-                      <p className="text-xs text-white/40">Click or drag to upload</p>
-                    </div>
-                  </label>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="relative group">
-                    <img
-                      src={uploadedImage}
-                      alt="Uploaded"
-                      className="w-full h-24 object-cover rounded-xl border border-white/20 group-hover:border-purple-300/50 transition-all duration-300"
-                    />
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setUploadedImage(null);
-                        setImageAnalysis(null);
-                      }}
-                      className="absolute top-2 right-2 w-6 h-6 bg-red-500/90 text-white rounded-full flex items-center justify-center text-sm hover:bg-red-500 hover:scale-110 transition-all duration-200 shadow-lg z-10"
-                      title="Remove image"
-                    >
-                      ×
-                    </button>
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  </div>
-                  
-                  {imageAnalysis && (
-                    <div className="p-3 bg-gradient-to-r from-green-500/10 to-blue-500/10 rounded-xl border border-green-300/20">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                        <p className="text-xs text-green-300 font-semibold">Image Analyzed</p>
-                      </div>
-                      <p className="text-xs text-white/70 leading-relaxed line-clamp-3">{imageAnalysis}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {!isCollapsed && (
-        <>
           {/* Enhanced Messages - Scrollable Container */}
           <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-4 relative z-10 scrollbar-thin scrollbar-thumb-purple-500 scrollbar-track-white/10">
             {messages.map((message) => (
@@ -437,7 +343,6 @@ export default function Chatbot({
                     <Bot className="w-3 h-3 text-white" />
                   </div>
                 )}
-                
                 <div
                   className={`max-w-[80%] p-3 rounded-xl relative group transition-all duration-300 ${
                     message.isBot
@@ -447,7 +352,6 @@ export default function Chatbot({
                 >
                   <p className="text-xs leading-relaxed">{message.content}</p>
                   <Timestamp timestamp={message.timestamp} />
-
                   {message.isBot && (
                     <div className="absolute -right-1.5 top-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                       <div className="flex items-center gap-0.5 bg-gradient-to-r from-white/20 to-white/10 backdrop-blur-sm rounded-lg p-0.5 shadow-lg border border-white/30">
@@ -474,7 +378,6 @@ export default function Chatbot({
                     </div>
                   )}
                 </div>
-
                 {!message.isBot && (
                   <div className="w-7 h-7 bg-gradient-to-br from-blue-500 via-cyan-500 to-teal-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg">
                     <User className="w-3 h-3 text-white" />
@@ -482,7 +385,6 @@ export default function Chatbot({
                 )}
               </div>
             ))}
-
             {/* Enhanced Typing Indicator */}
             {isTyping && (
               <div className="flex gap-2 justify-start animate-fadeInUp">
@@ -499,35 +401,92 @@ export default function Chatbot({
               </div>
             )}
           </div>
-
           {/* Enhanced Quick Questions - Fixed */}
           <div className="flex-shrink-0 p-3 border-t border-white/20 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-violet-500/10 backdrop-blur-sm relative z-10">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-white/70 font-semibold">Quick Questions</p>
-              {currentChainDepth > 0 && (
-                <button
-                  onClick={resetChain}
-                  className="text-xs text-white/60 hover:text-white/80 transition-colors"
-                  title="Reset conversation context"
-                >
-                  🔄 Reset
-                </button>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-1.5">
-              {quickQuestions.map((question, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleSendMessage(question.text)}
-                  className="flex items-center gap-1.5 px-2 py-1.5 bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-sm border border-white/20 rounded-lg text-xs text-white/80 hover:text-white hover:bg-white/20 transition-all duration-300 hover:scale-105 group"
-                >
-                  <question.icon className="w-2.5 h-2.5 group-hover:scale-110 transition-transform" />
-                  <span className="truncate">{question.text}</span>
-                </button>
-              ))}
-            </div>
+            {uploadedImage ? (
+              <>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Image className="w-4 h-4 text-green-400" />
+                    <p className="text-xs text-white/70 font-semibold">Uploaded Image</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setUploadedImage(null);
+                        setImageAnalysis(null);
+                      }}
+                      className="text-xs text-white/60 hover:text-white/80 transition-colors"
+                      title="Remove image"
+                    >
+                      ✕ Remove
+                    </button>
+                    {currentChainDepth > 0 && (
+                      <button
+                        onClick={resetChain}
+                        className="text-xs text-white/60 hover:text-white/80 transition-colors"
+                        title="Reset conversation context"
+                      >
+                        🔄 Reset
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="relative">
+                  <img
+                    src={uploadedImage}
+                    alt="Uploaded preview"
+                    className="w-full h-24 object-cover rounded-lg border border-white/20 shadow-lg cursor-pointer"
+                    onClick={() => setShowImageModal(true)}
+                  />
+                  {imageAnalysis && (
+                    <div className="mt-2 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 p-2">
+                      <p className="text-xs text-white/80 leading-relaxed">
+                        {imageAnalysis.length > 100 
+                          ? `${imageAnalysis.substring(0, 100)}...` 
+                          : imageAnalysis
+                        }
+                      </p>
+                    </div>
+                  )}
+                </div>
+                {/* Fullscreen overlay for image */}
+                <ImageModal
+                  isOpen={showImageModal}
+                  onClose={() => setShowImageModal(false)}
+                  imageUrl={uploadedImage}
+                  imageAnalysis={imageAnalysis}
+                />
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs text-white/70 font-semibold">Quick Questions</p>
+                  {currentChainDepth > 0 && (
+                    <button
+                      onClick={resetChain}
+                      className="text-xs text-white/60 hover:text-white/80 transition-colors"
+                      title="Reset conversation context"
+                    >
+                      🔄 Reset
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {quickQuestions.map((question, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleSendMessage(question.text)}
+                      className="flex items-center gap-1.5 px-2 py-1.5 bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-sm border border-white/20 rounded-lg text-xs text-white/80 hover:text-white hover:bg-white/20 transition-all duration-300 hover:scale-105 group"
+                    >
+                      <question.icon className="w-2.5 h-2.5 group-hover:scale-110 transition-transform" />
+                      <span className="truncate">{question.text}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
-
           {/* Enhanced Message Input - Fixed */}
           <div className="flex-shrink-0 p-3 border-t border-white/20 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 backdrop-blur-sm relative z-10">
             <MessageInput 
@@ -535,13 +494,13 @@ export default function Chatbot({
               onNewGeneratedContent={onNewGeneratedContent}
               onGeneratingStateChange={onGeneratingStateChange}
               onChainUpdate={handleChainUpdate}
-              isImageMode={isImageMode}
+              onImageUpload={handleImageUpload}
+              uploadedImage={uploadedImage}
               imageAnalysis={imageAnalysis}
             />
           </div>
         </>
       )}
-
       {/* Collapsed State Content */}
       {isCollapsed && (
         <div className="flex flex-col items-center justify-center flex-1 p-3 relative z-10">
@@ -552,7 +511,6 @@ export default function Chatbot({
             <p className="text-white/60 text-xs font-medium mb-1.5">AI Chat</p>
             <div className="w-1.5 h-1.5 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full animate-pulse"></div>
           </div>
-          
           {/* Notification badge */}
           <div className="absolute top-3 right-3 w-5 h-5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center shadow-lg">
             <span className="text-white text-xs font-bold">{messages.length}</span>

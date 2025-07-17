@@ -11,7 +11,8 @@ interface MessageInputProps {
   onNewGeneratedContent?: (sections: GeneratedSection[]) => void;
   onGeneratingStateChange?: (generating: boolean) => void;
   onChainUpdate?: (chain: PromptChain) => void;
-  isImageMode?: boolean;
+  onImageUpload?: (file: File) => void; // <-- add this prop
+  uploadedImage?: string | null;
   imageAnalysis?: string | null;
 }
 
@@ -20,14 +21,15 @@ export default function MessageInput({
   onNewGeneratedContent, 
   onGeneratingStateChange,
   onChainUpdate,
-  isImageMode = false,
+  onImageUpload,
+  uploadedImage = null,
   imageAnalysis = null
 }: MessageInputProps) {
   const [message, setMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [generateImage, setGenerateImage] = useState(true);
   const promptChainRef = useRef<PromptChain | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Initialize prompt chain
   if (!promptChainRef.current) {
@@ -85,13 +87,12 @@ export default function MessageInput({
 
       // Process prompt with image context using ImagePromptHandler
       const promptResult = ImagePromptHandler.processPrompt({
-        isImageMode,
-        imageAnalysis,
+        isImageMode: !!uploadedImage && !!imageAnalysis,
+        imageAnalysis: imageAnalysis,
         userPrompt,
         context,
         isChained
       });
-      
       const finalPrompt = promptResult.finalPrompt;
 
       // Use streaming mode for better UX
@@ -101,7 +102,7 @@ export default function MessageInput({
           prompt: finalPrompt,
           context: context,
           isChained: isChained,
-          generateImage: generateImage,
+          generateImage: true,
           streamMode: true // Enable streaming
         }),
         headers: { 'Content-Type': 'application/json' },
@@ -135,109 +136,53 @@ export default function MessageInput({
                     // Send the simple response to chatbot immediately
                     onSendMessage(userPrompt, data.text);
                     break;
-                    
                   case 'variation':
                     accumulatedResponses = data.allResponses;
-                    // Update GeneratedContent with new responses as they come in
                     if (onNewGeneratedContent) {
-                      let generatedSections: GeneratedSection[];
-                      
-                      if (isImageMode && imageAnalysis) {
-                        // Use ImagePromptHandler for image-based sections
-                        generatedSections = ImagePromptHandler.createImageGeneratedSections(
-                          accumulatedResponses,
-                          userPrompt,
-                          imageAnalysis,
-                          promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0
-                        );
-                      } else {
-                        // Use regular section generation
-                        const sectionTitles = generateSectionTitles(userPrompt);
-                        generatedSections = accumulatedResponses.map((response, index) => ({
-                          id: `section-${Date.now()}-${index}`,
-                          title: sectionTitles[index] || `Response ${index + 1}`,
-                          prompt: response.prompt,
-                          content: response.response,
-                          timestamp: new Date(),
-                          chainDepth: promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0,
-                          isChained: promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 1 : false,
-                          imageUrl: '' // Will be updated when image is ready
-                        }));
-                      }
-                      
+                      const sectionTitles = generateSectionTitles(userPrompt);
+                      const generatedSections = accumulatedResponses.map((response, index) => ({
+                        id: `section-${Date.now()}-${index}`,
+                        title: sectionTitles[index] || `Response ${index + 1}`,
+                        prompt: response.prompt,
+                        content: response.response,
+                        timestamp: new Date(),
+                        chainDepth: promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0,
+                        isChained: promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 1 : false,
+                        imageUrl: ''
+                      }));
                       onNewGeneratedContent(generatedSections);
                     }
                     break;
-                    
                   case 'image':
                     imageUrl = data.imageUrl;
-                    // Update the first section with the image URL
                     if (onNewGeneratedContent && accumulatedResponses.length > 0) {
-                      let generatedSections: GeneratedSection[];
-                      
-                      if (isImageMode && imageAnalysis) {
-                        // Use ImagePromptHandler for image-based sections
-                        generatedSections = ImagePromptHandler.createImageGeneratedSections(
-                          accumulatedResponses,
-                          userPrompt,
-                          imageAnalysis,
-                          promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0
-                        );
-                        // Add image URL to the first section
-                        if (generatedSections.length > 0) {
-                          generatedSections[0].imageUrl = imageUrl;
-                        }
-                      } else {
-                        // Use regular section generation
-                        const sectionTitles = generateSectionTitles(userPrompt);
-                        generatedSections = accumulatedResponses.map((response, index) => ({
-                          id: `section-${Date.now()}-${index}`,
-                          title: sectionTitles[index] || `Response ${index + 1}`,
-                          prompt: response.prompt,
-                          content: response.response,
-                          timestamp: new Date(),
-                          chainDepth: promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0,
-                          isChained: promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 1 : false,
-                          imageUrl: index === 0 ? imageUrl : '' // Add image URL to the first section
-                        }));
-                      }
-                      
+                      const sectionTitles = generateSectionTitles(userPrompt);
+                      const generatedSections = accumulatedResponses.map((response, index) => ({
+                        id: `section-${Date.now()}-${index}`,
+                        title: sectionTitles[index] || `Response ${index + 1}`,
+                        prompt: response.prompt,
+                        content: response.response,
+                        timestamp: new Date(),
+                        chainDepth: promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0,
+                        isChained: promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 1 : false,
+                        imageUrl: index === 0 ? imageUrl : ''
+                      }));
                       onNewGeneratedContent(generatedSections);
                     }
                     break;
-                    
                   case 'complete':
-                    // Final update with complete data
                     if (onNewGeneratedContent) {
-                      let generatedSections: GeneratedSection[];
-                      
-                      if (isImageMode && imageAnalysis) {
-                        // Use ImagePromptHandler for image-based sections
-                        generatedSections = ImagePromptHandler.createImageGeneratedSections(
-                          data.responses,
-                          userPrompt,
-                          imageAnalysis,
-                          promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0
-                        );
-                        // Add image URL to the first section
-                        if (generatedSections.length > 0) {
-                          generatedSections[0].imageUrl = data.imageUrl;
-                        }
-                      } else {
-                        // Use regular section generation
-                        const sectionTitles = generateSectionTitles(userPrompt);
-                        generatedSections = data.responses.map((response: any, index: number) => ({
-                          id: `section-${Date.now()}-${index}`,
-                          title: sectionTitles[index] || `Response ${index + 1}`,
-                          prompt: response.prompt,
-                          content: response.response,
-                          timestamp: new Date(),
-                          chainDepth: promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0,
-                          isChained: promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 1 : false,
-                          imageUrl: index === 0 ? data.imageUrl : '' // Add image URL to the first section
-                        }));
-                      }
-                      
+                      const sectionTitles = generateSectionTitles(userPrompt);
+                      const generatedSections = data.responses.map((response: any, index: number) => ({
+                        id: `section-${Date.now()}-${index}`,
+                        title: sectionTitles[index] || `Response ${index + 1}`,
+                        prompt: response.prompt,
+                        content: response.response,
+                        timestamp: new Date(),
+                        chainDepth: promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0,
+                        isChained: promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 1 : false,
+                        imageUrl: index === 0 ? data.imageUrl : ''
+                      }));
                       onNewGeneratedContent(generatedSections);
                     }
                     break;
@@ -285,6 +230,14 @@ export default function MessageInput({
     // Add voice recording logic here
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && onImageUpload) {
+      onImageUpload(file);
+      e.target.value = '';
+    }
+  };
+
   const canContinueChain = promptChainRef.current ? promptChainRef.current.canAddMore() : true;
   const chainDepth = promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0;
 
@@ -293,18 +246,7 @@ export default function MessageInput({
       {/* Status Indicators - Fixed Position */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          {isImageMode && imageAnalysis && (
-            <div className="flex items-center gap-1 px-2 py-1 bg-green-500/20 rounded-full border border-green-300/30">
-              <Image className="w-3 h-3 text-green-400" />
-              <span className="text-xs text-green-400 font-medium">Image Mode</span>
-            </div>
-          )}
-          {generateImage && (
-            <div className="flex items-center gap-1 px-2 py-1 bg-purple-500/20 rounded-full border border-purple-300/30">
-              <Image className="w-3 h-3 text-purple-400" />
-              <span className="text-xs text-purple-400 font-medium">AI Generated</span>
-            </div>
-          )}
+          {/* Removed image mode indicator */}
         </div>
         
         {/* Character Counter */}
@@ -324,9 +266,7 @@ export default function MessageInput({
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
               <span className="text-white/80 text-xs font-medium">
-                {isRecording ? 'Recording...' : 
-                 isImageMode && imageAnalysis ? 'Analyzing image and generating response...' :
-                 generateImage ? 'Generating text and image...' : 'Generating...'}
+                {isRecording ? 'Recording...' : 'Generating text and image...'}
               </span>
             </div>
           </div>
@@ -343,11 +283,9 @@ export default function MessageInput({
               onChange={(e) => setMessage(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder={
-                isImageMode && imageAnalysis
-                  ? "Ask me anything about the uploaded image..."
-                  : chainDepth > 0 
-                    ? "Continue the conversation with context..." 
-                    : "Ask me anything about the lesson..."
+                chainDepth > 0 
+                  ? "Continue the conversation with context..." 
+                  : "Ask me anything about the lesson..."
               }
               rows={1}
               className="w-full px-4 py-3 pr-20 glass backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300 text-white placeholder-white/60 resize-none text-sm leading-relaxed"
@@ -357,13 +295,6 @@ export default function MessageInput({
             
             {/* Input Actions */}
             <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
-             
-              <div
-                className="p-1.5 rounded-lg transition-all duration-200 text-purple-400 bg-purple-500/20"
-                title="Image generation enabled"
-              >
-                <Image className="w-4 h-4" />
-              </div>
               <button
                 type="button"
                 onClick={toggleRecording}
@@ -376,6 +307,21 @@ export default function MessageInput({
               >
                 <Mic className="w-4 h-4" />
               </button>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-all duration-200"
+                title="Attach image"
+              >
+                <Paperclip className="w-4 h-4" />
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handleFileChange}
+              />
             </div>
           </div>
 

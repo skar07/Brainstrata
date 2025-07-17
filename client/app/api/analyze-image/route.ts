@@ -26,14 +26,14 @@ export async function POST(req: NextRequest) {
       messages: [
         {
           role: "system",
-          content: "You are an expert image analyzer. Analyze the uploaded image and provide a detailed description of what you see. Focus on identifying objects, text, diagrams, charts, or any visual elements that could be relevant for educational purposes. Be thorough but concise."
+          content: "You are an expert image analyzer. You must answer ONLY based on the content of the uploaded image. Do not use any outside knowledge or assumptions. If you cannot determine something from the image, say so."
         },
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: "Please analyze this image and provide a detailed description of what you see. Include any text, diagrams, charts, or visual elements that could be relevant for answering questions about this image."
+              text: "Analyze this image and provide a detailed description. Your answer must be strictly based on what is visible in the image. If you cannot determine something from the image, say so. Do not use any outside knowledge."
             },
             {
               type: "image_url",
