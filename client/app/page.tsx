@@ -17,8 +17,12 @@ import { PromptChain } from '@/components/promptchaining';
 import { useAuth } from '@/lib/stores/authStore';
 import { useRouter } from 'next/navigation';
 import { mockCourses, getCourseById, getLessonById } from '@/data/courses';
-import RoadmapGenerator from '@/components/RoadmapGenerator';
+import RoadmapGenerator from '@/components/roadmap-generator/RoadmapGenerator';
+import MindMap from '@/components/global-mindmap/MindMap';
 
+import RoadmapView from '@/components/global-mindmap/RoadmapView';
+import { topicData } from '@/data/topicData';
+import { RoadmapItem } from '@/types/roadmap';
 
 export default function Home() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -35,6 +39,16 @@ export default function Home() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentPromptChain, setCurrentPromptChain] = useState<PromptChain | undefined>(undefined);
   const [currentPrompt, setCurrentPrompt] = useState<string>('');
+
+  const [selectedRoadmap, setSelectedRoadmap] = useState<{
+    id: string;
+    data: {
+      title: string;
+      description: string;
+      roadmap: RoadmapItem[];
+    };
+  } | null>(null);
+
 
   // Navigation
   const [currentSection, setCurrentSection] = useState<string>('dashboard');
@@ -127,19 +141,63 @@ export default function Home() {
   };
 
   const renderMainContent = () => {
+    if (selectedRoadmap) {
+      // Find related topics based on the current topic
+      const currentTopicId = selectedRoadmap.id;
+      const relatedTopics = Object.keys(topicData)
+        .filter(topicId => topicId !== currentTopicId)
+        .map(topicId => ({
+          id: topicId,
+          title: topicData[topicId].title,
+          description: topicData[topicId].description
+        }))
+        .slice(0, 6); // Limit to 6 related topics
+
+      return (
+        <RoadmapView
+          data={selectedRoadmap.data}
+          onBack={() => setSelectedRoadmap(null)}
+          relatedTopics={relatedTopics}
+          onRelatedTopicClick={(topicId) => {
+            const roadmapData = topicData[topicId];
+            if (roadmapData) {
+              setSelectedRoadmap({
+                id: topicId,
+                data: roadmapData
+              });
+            }
+          }}
+        />
+      );
+    }
     switch (currentSection) {
       case 'catalog':
         return (
-          <MainCatalogView 
+          <MainCatalogView
             courses={mockCourses}
             onCourseSelect={handleCourseSelect}
           />
         );
-        case 'achievements':
-          return (
-            <RoadmapGenerator/>
-          );  
-
+      case 'achievements':
+        return (
+          <RoadmapGenerator />
+        );
+      case 'mindmap':
+        return (
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 p-6 lg:p-8 animate-fade-in-up animation-delay-300">
+            <div className="h-[90vh] min-h-[500px] w-full relative overflow-hidden rounded-xl">
+              <MindMap onNodeClick={(nodeId) => {
+                const roadmapData = topicData[nodeId];
+                if (roadmapData) {
+                  setSelectedRoadmap({
+                    id: nodeId,
+                    data: roadmapData
+                  });
+                }
+              }} />
+            </div>
+          </div>
+        );
       case 'lesson':
         if (!selectedCourse || !selectedLesson) return <div>Loading...</div>;
         const currentIndex = selectedCourse.lessons.findIndex((l: Lesson) => l.id === selectedLesson.id);
@@ -271,7 +329,7 @@ export default function Home() {
           </button>
         ) : (
           // Expanded: show the full Chatbot
-          <Chatbot 
+          <Chatbot
             onNewGeneratedContent={handleNewGeneratedContent}
             onGeneratingStateChange={handleGeneratingStateChange}
             onChainUpdate={handleChainUpdate}

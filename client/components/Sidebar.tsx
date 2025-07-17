@@ -22,7 +22,8 @@ import {
   Zap,
   Target,
   LogOut,
-  Power
+  Power,
+  Network
 } from 'lucide-react';
 
 import { useAuth } from '@/lib/stores/authStore';
@@ -30,7 +31,7 @@ import { useRouter } from 'next/navigation';
 import { mockCourses } from '@/data/courses';
 import type { Course } from '@/types/api';
 import CompactCatalog from './CompactCatalog';
-import RoadmapGenerator from './RoadmapGenerator';
+import RoadmapGenerator from './roadmap-generator/RoadmapGenerator';
 
 interface SidebarProps {
   isCollapsed?: boolean;
@@ -143,6 +144,14 @@ export default function Sidebar({
       color: 'from-slate-500 to-gray-600',
       notifications: 0,
       onClick: () => onNavigate('settings')
+    },
+    {
+      icon: Network,
+      label: 'Mind Map',
+      active: false,
+      color: 'from-emerald-500 to-teal-500',
+      notifications: 0,
+      onClick: () => onNavigate('mindmap')
     }
   ];
 
