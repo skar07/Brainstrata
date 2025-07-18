@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { Send, Paperclip, Smile, Mic, Image } from 'lucide-react';
-import type { GenerateResponse, GeneratedSection } from '../types/api';
+import { useState, useRef, useEffect } from 'react';
+import { Send, Paperclip, Image, Mic, Loader2 } from 'lucide-react';
 import { PromptChain } from './promptchaining';
 import ImagePromptHandler from '../lib/imagePromptHandler';
+import type { GeneratedSection } from '../types/api';
 
 interface MessageInputProps {
-  onSendMessage: (message: string, response?: string) => void;
+  onSendMessage: (content: string, response?: string) => void;
   onNewGeneratedContent?: (sections: GeneratedSection[]) => void;
   onGeneratingStateChange?: (generating: boolean) => void;
   onChainUpdate?: (chain: PromptChain) => void;
@@ -26,8 +26,9 @@ export default function MessageInput({
   imageAnalysis = null
 }: MessageInputProps) {
   const [message, setMessage] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+
   const promptChainRef = useRef<PromptChain | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -62,8 +63,6 @@ export default function MessageInput({
       // Create a contextual prompt with conversation history
       return `Previous conversation context:\n${context}\n\nNow, please respond to: ${currentPrompt}`;
     }
-
-    return currentPrompt;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -72,9 +71,6 @@ export default function MessageInput({
 
     const userPrompt = message.trim();
     setLoading(true);
-    setMessage('');
-
-    // Notify that generation is starting
     onGeneratingStateChange?.(true);
 
     // First, send the user message to chatbot
@@ -218,12 +214,14 @@ export default function MessageInput({
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
     }
   };
+
+  const handleKeyPress = handleKeyDown;
 
   const toggleRecording = () => {
     setIsRecording(!isRecording);
