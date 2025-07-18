@@ -1,6 +1,5 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Sparkles, Star, Zap, LogOut, Settings } from 'lucide-react';
 
 import Sidebar from '@/components/Sidebar';
 import Chatbot from '@/components/Chatbot';
@@ -10,12 +9,20 @@ import QuizGenerator from '@/components/QuizGenerator';
 import CourseList from '@/components/CourseList';
 import MainCatalogView from '@/components/MainCatalogView';
 import LessonView from '@/components/LessonView';
+import { Menu, X, Sparkles, Star, Zap, Bot, Settings } from 'lucide-react';
 
-import type { GeneratedSection, Course, Lesson } from '@/types/api';
+import type { GeneratedSection } from '@/types/api';
+import type { Course, Lesson } from '@/data/courses';
 import { PromptChain } from '@/components/promptchaining';
 import { useAuth } from '@/lib/stores/authStore';
 import { useRouter } from 'next/navigation';
 import { mockCourses, getCourseById, getLessonById } from '@/data/courses';
+import RoadmapGenerator from '@/components/roadmap-generator/RoadmapGenerator';
+import MindMap from '@/components/global-mindmap/MindMap';
+
+import RoadmapView from '@/components/global-mindmap/RoadmapView';
+import { topicData } from '@/data/topicData';
+import { RoadmapItem } from '@/types/roadmap';
 
 export default function Home() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -32,6 +39,16 @@ export default function Home() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentPromptChain, setCurrentPromptChain] = useState<PromptChain | undefined>(undefined);
   const [currentPrompt, setCurrentPrompt] = useState<string>('');
+
+  const [selectedRoadmap, setSelectedRoadmap] = useState<{
+    id: string;
+    data: {
+      title: string;
+      description: string;
+      roadmap: RoadmapItem[];
+    };
+  } | null>(null);
+
 
   // Navigation
   const [currentSection, setCurrentSection] = useState<string>('dashboard');
@@ -78,7 +95,7 @@ export default function Home() {
     const course = getCourseById(courseId);
     if (course) {
       setSelectedCourse(course);
-      const firstLesson = course.lessons.find(lesson => lesson.order === 1);
+      const firstLesson = course.lessons.find((lesson: Lesson) => lesson.order === 1);
       if (firstLesson) {
         setSelectedLesson(firstLesson);
         setCurrentSection('lesson');
@@ -98,14 +115,14 @@ export default function Home() {
 
   const handleNextLesson = () => {
     if (!selectedCourse || !selectedLesson) return;
-    const index = selectedCourse.lessons.findIndex(l => l.id === selectedLesson.id);
+    const index = selectedCourse.lessons.findIndex((l: Lesson) => l.id === selectedLesson.id);
     const next = selectedCourse.lessons[index + 1];
     if (next) setSelectedLesson(next);
   };
 
   const handlePreviousLesson = () => {
     if (!selectedCourse || !selectedLesson) return;
-    const index = selectedCourse.lessons.findIndex(l => l.id === selectedLesson.id);
+    const index = selectedCourse.lessons.findIndex((l: Lesson) => l.id === selectedLesson.id);
     const prev = selectedCourse.lessons[index - 1];
     if (prev) setSelectedLesson(prev);
   };
@@ -124,12 +141,66 @@ export default function Home() {
   };
 
   const renderMainContent = () => {
+    if (selectedRoadmap) {
+      // Find related topics based on the current topic
+      const currentTopicId = selectedRoadmap.id;
+      const relatedTopics = Object.keys(topicData)
+        .filter(topicId => topicId !== currentTopicId)
+        .map(topicId => ({
+          id: topicId,
+          title: topicData[topicId].title,
+          description: topicData[topicId].description
+        }))
+        .slice(0, 6); // Limit to 6 related topics
+
+      return (
+        <RoadmapView
+          data={selectedRoadmap.data}
+          onBack={() => setSelectedRoadmap(null)}
+          relatedTopics={relatedTopics}
+          onRelatedTopicClick={(topicId) => {
+            const roadmapData = topicData[topicId];
+            if (roadmapData) {
+              setSelectedRoadmap({
+                id: topicId,
+                data: roadmapData
+              });
+            }
+          }}
+        />
+      );
+    }
     switch (currentSection) {
       case 'catalog':
-        return <MainCatalogView courses={mockCourses} onCourseSelect={handleCourseSelect} />;
+        return (
+          <MainCatalogView
+            courses={mockCourses}
+            onCourseSelect={handleCourseSelect}
+          />
+        );
+      case 'achievements':
+        return (
+          <RoadmapGenerator />
+        );
+      case 'mindmap':
+        return (
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 p-6 lg:p-8 animate-fade-in-up animation-delay-300">
+            <div className="h-[90vh] min-h-[500px] w-full relative overflow-hidden rounded-xl">
+              <MindMap onNodeClick={(nodeId) => {
+                const roadmapData = topicData[nodeId];
+                if (roadmapData) {
+                  setSelectedRoadmap({
+                    id: nodeId,
+                    data: roadmapData
+                  });
+                }
+              }} />
+            </div>
+          </div>
+        );
       case 'lesson':
         if (!selectedCourse || !selectedLesson) return <div>Loading...</div>;
-        const currentIndex = selectedCourse.lessons.findIndex(l => l.id === selectedLesson.id);
+        const currentIndex = selectedCourse.lessons.findIndex((l: Lesson) => l.id === selectedLesson.id);
         return (
           <LessonView
             course={selectedCourse}
@@ -244,16 +315,30 @@ export default function Home() {
         />
       </div>
 
-      {/* Chatbot */}
-      <div className="hidden lg:block fixed top-0 right-0 z-20">
-        <Chatbot
-          isCollapsed={isChatbotCollapsed}
-          setIsCollapsed={setIsChatbotCollapsed}
-          onNewGeneratedContent={handleNewGeneratedContent}
-          onGeneratingStateChange={handleGeneratingStateChange}
-          onChainUpdate={handleChainUpdate}
-          onPromptUpdate={handlePromptUpdate}
-        />
+      {/* Enhanced Desktop Chatbot - Fixed Position */}
+      <div className="hidden lg:block fixed bottom-0 right-0 z-20">
+        {isChatbotCollapsed ? (
+          // Collapsed: show a floating icon/button
+          <button
+            className="m-4 p-3 rounded-full bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 shadow-lg hover:scale-110 transition-all"
+            onClick={() => setIsChatbotCollapsed(false)}
+            title="Open Chatbot"
+          >
+            {/* You can use any icon, e.g., a chat bubble or robot */}
+            <Bot className="w-7 h-7 text-white" />
+          </button>
+        ) : (
+          // Expanded: show the full Chatbot
+          <Chatbot
+            onNewGeneratedContent={handleNewGeneratedContent}
+            onGeneratingStateChange={handleGeneratingStateChange}
+            onChainUpdate={handleChainUpdate}
+            onPromptUpdate={handlePromptUpdate}
+            isCollapsed={isChatbotCollapsed}
+            setIsCollapsed={setIsChatbotCollapsed}
+          />
+        )}
+
       </div>
 
       {/* Mobile Chatbot */}
