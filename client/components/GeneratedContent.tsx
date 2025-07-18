@@ -431,15 +431,15 @@ export default function GeneratedContent({
               >
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                   <div className="flex items-center gap-4 mb-4">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                    {/* <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
                       {(() => {
                         const IconComponent = getIconForSection(index);
                         return <IconComponent className="w-5 h-5 text-white" />;
                       })()}
                     </div>
                     <div className="flex-1">
-                      <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900 leading-tight mb-1">{section.title}</h2>
-                    </div>
+                      <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900 leading-tight mb-1"> AI Generated Content </h2>
+                    </div> */}
                   </div>
                   {/* Professional Content Formatting */}
                   <div className="mb-6">

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Paperclip, Image, Mic, Loader2 } from 'lucide-react';
 import { PromptChain } from './promptchaining';
+import ImagePromptHandler from '../lib/imagePromptHandler';
 import type { GeneratedSection } from '../types/api';
 
 interface MessageInputProps {
@@ -10,28 +11,57 @@ interface MessageInputProps {
   onNewGeneratedContent?: (sections: GeneratedSection[]) => void;
   onGeneratingStateChange?: (generating: boolean) => void;
   onChainUpdate?: (chain: PromptChain) => void;
+  onImageUpload?: (file: File) => void; // <-- add this prop
+  uploadedImage?: string | null;
+  imageAnalysis?: string | null;
 }
 
 export default function MessageInput({ 
   onSendMessage, 
   onNewGeneratedContent, 
   onGeneratingStateChange,
-  onChainUpdate
+  onChainUpdate,
+  onImageUpload,
+  uploadedImage = null,
+  imageAnalysis = null
 }: MessageInputProps) {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  // Removed suggestions and smart features state
 
-  const toggleRecording = () => {
-    setIsRecording(!isRecording);
+  const promptChainRef = useRef<PromptChain | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Initialize prompt chain
+  if (!promptChainRef.current) {
+    promptChainRef.current = new PromptChain(50); // Increased from 5 to 50 for unlimited prompts
+  }
+
+  const generateSectionTitles = (originalPrompt: string): string[] => {
+    return [
+      `Understanding ${originalPrompt.split(' ').slice(0, 3).join(' ')}`,
+      `Key Concepts of ${originalPrompt.split(' ').slice(0, 2).join(' ')}`,
+      `Practical Applications`,
+      `Common Questions About ${originalPrompt.split(' ').slice(0, 2).join(' ')}`,
+      `Advanced Insights`
+    ];
   };
 
-  const adjustTextareaHeight = () => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 60)}px`;
+  const buildContextFromChain = (): string => {
+    if (!promptChainRef.current) return '';
+    
+    // Use the new conversation context method
+    return promptChainRef.current.getConversationContext();
+  };
+
+  const generateContextualPrompt = (currentPrompt: string): string => {
+    if (!promptChainRef.current) return currentPrompt;
+    
+    const context = buildContextFromChain();
+
+    if (context) {
+      // Create a contextual prompt with conversation history
+      return `Previous conversation context:\n${context}\n\nNow, please respond to: ${currentPrompt}`;
     }
   };
 
@@ -39,42 +69,145 @@ export default function MessageInput({
     e.preventDefault();
     if (!message.trim() || loading) return;
 
+    const userPrompt = message.trim();
     setLoading(true);
     onGeneratingStateChange?.(true);
 
+    // First, send the user message to chatbot
+    onSendMessage(userPrompt);
+
     try {
-      const trimmedMessage = message.trim();
-      setMessage('');
-      
-      // Reset textarea height
-      if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
+      // Get conversation context for the API
+      const context = buildContextFromChain();
+      const isChained = promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 0 : false;
+
+      // Process prompt with image context using ImagePromptHandler
+      const promptResult = ImagePromptHandler.processPrompt({
+        isImageMode: !!uploadedImage && !!imageAnalysis,
+        imageAnalysis: imageAnalysis,
+        userPrompt,
+        context,
+        isChained
+      });
+      const finalPrompt = promptResult.finalPrompt;
+
+      // Use streaming mode for better UX
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          prompt: finalPrompt,
+          context: context,
+          isChained: isChained,
+          generateImage: true,
+          streamMode: true // Enable streaming
+        }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!res.ok) throw new Error(await res.text());
+
+      // Handle streaming response
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      let accumulatedResponses: any[] = [];
+      let simpleResponse = '';
+      let imageUrl = '';
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                
+                switch (data.type) {
+                  case 'simple':
+                    simpleResponse = data.text;
+                    // Send the simple response to chatbot immediately
+                    onSendMessage(userPrompt, data.text);
+                    break;
+                  case 'variation':
+                    accumulatedResponses = data.allResponses;
+                    if (onNewGeneratedContent) {
+                      const sectionTitles = generateSectionTitles(userPrompt);
+                      const generatedSections = accumulatedResponses.map((response, index) => ({
+                        id: `section-${Date.now()}-${index}`,
+                        title: sectionTitles[index] || `Response ${index + 1}`,
+                        prompt: response.prompt,
+                        content: response.response,
+                        timestamp: new Date(),
+                        chainDepth: promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0,
+                        isChained: promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 1 : false,
+                        imageUrl: ''
+                      }));
+                      onNewGeneratedContent(generatedSections);
+                    }
+                    break;
+                  case 'image':
+                    imageUrl = data.imageUrl;
+                    if (onNewGeneratedContent && accumulatedResponses.length > 0) {
+                      const sectionTitles = generateSectionTitles(userPrompt);
+                      const generatedSections = accumulatedResponses.map((response, index) => ({
+                        id: `section-${Date.now()}-${index}`,
+                        title: sectionTitles[index] || `Response ${index + 1}`,
+                        prompt: response.prompt,
+                        content: response.response,
+                        timestamp: new Date(),
+                        chainDepth: promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0,
+                        isChained: promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 1 : false,
+                        imageUrl: index === 0 ? imageUrl : ''
+                      }));
+                      onNewGeneratedContent(generatedSections);
+                    }
+                    break;
+                  case 'complete':
+                    if (onNewGeneratedContent) {
+                      const sectionTitles = generateSectionTitles(userPrompt);
+                      const generatedSections = data.responses.map((response: any, index: number) => ({
+                        id: `section-${Date.now()}-${index}`,
+                        title: sectionTitles[index] || `Response ${index + 1}`,
+                        prompt: response.prompt,
+                        content: response.response,
+                        timestamp: new Date(),
+                        chainDepth: promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0,
+                        isChained: promptChainRef.current ? promptChainRef.current.getCurrentDepth() > 1 : false,
+                        imageUrl: index === 0 ? data.imageUrl : ''
+                      }));
+                      onNewGeneratedContent(generatedSections);
+                    }
+                    break;
+                }
+              } catch (parseError) {
+                console.error('Error parsing streaming data:', parseError);
+              }
+            }
+          }
+        }
       }
 
-      // Send message
-      onSendMessage(trimmedMessage);
+      // Update the chain with the response
+      if (promptChainRef.current) {
+        // Update the last node with the response
+        const chainHistory = promptChainRef.current.getChainHistory();
+        const lastNode = chainHistory[chainHistory.length - 1];
+        if (lastNode) {
+          lastNode.response = simpleResponse;
+        }
+        
+        // Notify parent component about chain update
+        onChainUpdate?.(promptChainRef.current);
+      }
 
-      // Simulate AI response time
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-             // Add mock generated content
-       if (onNewGeneratedContent) {
-         const mockSections: GeneratedSection[] = [
-           {
-             id: Date.now().toString(),
-             title: 'AI Response',
-             prompt: trimmedMessage,
-             content: `This is a response to your message: "${trimmedMessage}". The AI has generated relevant content based on your query.`,
-             timestamp: new Date(),
-             chainDepth: 0,
-             isChained: false
-           }
-         ];
-         onNewGeneratedContent(mockSections);
-       }
-
-    } catch (error) {
-      console.error('Error sending message:', error);
+    } catch (err) {
+      console.error('API Error:', err);
+      // Send error message back to chatbot
+      onSendMessage(userPrompt, "I'm sorry, I encountered an error while processing your request. Please try again.");
     } finally {
       setLoading(false);
       onGeneratingStateChange?.(false);
@@ -88,101 +221,122 @@ export default function MessageInput({
     }
   };
 
-  // Removed suggestions and smart features arrays
+  const handleKeyPress = handleKeyDown;
 
-  useEffect(() => {
-    adjustTextareaHeight();
-  }, [message]);
+  const toggleRecording = () => {
+    setIsRecording(!isRecording);
+    // Add voice recording logic here
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && onImageUpload) {
+      onImageUpload(file);
+      e.target.value = '';
+    }
+  };
+
+  const canContinueChain = promptChainRef.current ? promptChainRef.current.canAddMore() : true;
+  const chainDepth = promptChainRef.current ? promptChainRef.current.getCurrentDepth() : 0;
 
   return (
-    <div className="relative">
-      {/* Enhanced Input Form */}
-      <form onSubmit={handleSubmit} className="relative">
-        <div className="flex items-center gap-1 p-2 bg-slate-800/70 backdrop-blur-lg border border-slate-600/50 rounded-2xl shadow-xl hover:border-slate-500/50 transition-all duration-300">
-          {/* Main Input Container */}
-          <div className="flex-1 relative min-w-0">
+    <div className="space-y-3">
+      {/* Status Indicators - Fixed Position */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {/* Removed image mode indicator */}
+        </div>
+        
+        {/* Character Counter */}
+        {message.length > 0 && (
+          <span className={`text-xs ${
+            message.length > 500 ? 'text-red-400' : 'text-white/60'
+          }`}>
+            {message.length}/1000
+          </span>
+        )}
+      </div>
+
+      {/* Loading Status */}
+      {(isRecording || loading) && (
+        <div className="flex items-center justify-center">
+          <div className="glass backdrop-blur-sm rounded-full px-4 py-2 border border-white/20">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
+              <span className="text-white/80 text-xs font-medium">
+                {isRecording ? 'Recording...' : 'Generating text and image...'}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Input Form */}
+      <form onSubmit={handleSubmit}>
+        <div className="flex items-end gap-3">
+          {/* Input Container */}
+          <div className="flex-1 relative">
             <textarea
-              ref={textareaRef}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Type..."
-              className="w-full bg-transparent text-white placeholder-slate-400 text-sm resize-none border-none outline-none py-2 px-2 min-h-[30px] max-h-[100px] leading-relaxed scrollbar-hide"
+              onKeyPress={handleKeyPress}
+              placeholder={
+                chainDepth > 0 
+                  ? "Continue the conversation with context..." 
+                  : "Ask me anything about the lesson..."
+              }
               rows={1}
+              className="w-full px-4 py-3 pr-20 glass backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300 text-white placeholder-white/60 resize-none text-sm leading-relaxed"
+              style={{ minHeight: '44px', maxHeight: '120px' }}
               disabled={loading}
-              style={{
-                scrollbarWidth: 'none',
-                msOverflowStyle: 'none',
-              }}
             />
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex items-center gap-0.5">
-            <button
-              type="button"
-              className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200"
-              title="Attach file"
-            >
-              <Paperclip className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200"
-              title="Add image"
-            >
-              <Image className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={toggleRecording}
-              className={`p-1.5 rounded-lg transition-all duration-200 ${
-                isRecording 
-                  ? 'text-red-400 bg-red-500/20 animate-pulse' 
-                  : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
-              }`}
-              title={isRecording ? "Stop recording" : "Voice message"}
-            >
-              <Mic className="w-3.5 h-3.5" />
-            </button>
+            
+            {/* Input Actions */}
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
+              <button
+                type="button"
+                onClick={toggleRecording}
+                className={`p-1.5 rounded-lg transition-all duration-200 ${
+                  isRecording 
+                    ? 'text-red-400 bg-red-500/20 animate-pulse' 
+                    : 'text-white/60 hover:text-white hover:bg-white/10'
+                }`}
+                title={isRecording ? "Stop recording" : "Voice message"}
+              >
+                <Mic className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-all duration-200"
+                title="Attach image"
+              >
+                <Paperclip className="w-4 h-4" />
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handleFileChange}
+              />
+            </div>
           </div>
 
           {/* Send Button */}
           <button
             type="submit"
             disabled={!message.trim() || loading}
-            className={`flex items-center justify-center p-2.5 rounded-xl transition-all duration-300 shadow-lg min-h-[38px] min-w-[38px] ${
+            className={`p-3 rounded-xl transition-all duration-300 shadow-lg ${
               message.trim() && !loading
-                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 hover:scale-105 hover:shadow-xl'
-                : 'bg-slate-700/50 text-slate-400 cursor-not-allowed'
+                ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 hover:scale-105 hover:shadow-xl'
+                : 'glass backdrop-blur-sm border border-white/20 text-white/40 cursor-not-allowed'
             }`}
             title="Send message"
           >
-            {loading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
+            <Send className="w-4 h-4" />
           </button>
         </div>
-
-        {/* Recording Indicator */}
-        {isRecording && (
-          <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 flex items-center gap-2 px-3 py-2 bg-red-500/20 backdrop-blur-lg border border-red-500/30 rounded-xl text-sm text-red-200 shadow-lg">
-            <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
-            <span>Recording...</span>
-          </div>
-        )}
-
-        {/* Loading Indicator */}
-        {loading && (
-          <div className="flex items-center justify-center mt-3">
-            <div className="flex items-center gap-2 text-sm text-slate-400">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span>AI is thinking...</span>
-            </div>
-          </div>
-        )}
       </form>
     </div>
   );

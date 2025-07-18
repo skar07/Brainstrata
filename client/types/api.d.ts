@@ -26,6 +26,8 @@ export interface GeneratedSection {
   chainDepth?: number;
   isChained?: boolean;
   imageUrl?: string; // New field for section-specific images
+  hasImageContext?: boolean; // New field to indicate if section has image context
+  imageAnalysis?: string; // New field to store image analysis for the section
 }
 
 // Quiz-related interfaces
@@ -50,4 +52,15 @@ export interface QuizQuestion {
 export interface QuizResponse {
   questions: QuizQuestion[];
   totalQuestions: number;
+}
+
+// Image analysis interfaces
+export interface ImageAnalysisRequest {
+  image: File;
+}
+
+export interface ImageAnalysisResponse {
+  analysis: string;
+  success: boolean;
+  error?: string;
 }
